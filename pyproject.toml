@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "quantkit"
+version = "0.1.0"
+description = "Optimal block-scaled FP4 quants (NVFP4, MXFP4)"
+authors = ["Ayoub G. <research@ayghri.me>"]
+packages = [{include = "quantkit"}]
+readme = "README.md"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.dependencies]
+python = ">=3.10"
+torch = ">=2.0"
+triton = ">=3.0"
