@@ -30,12 +30,19 @@ metrics = compute_metrics(W, W_dq.reshape(M, K), X)
 
 ```{toctree}
 :maxdepth: 2
-:caption: Contents
+:caption: Methods
 
 optimal_scale_search
 hessian_scale_search
 scale_distance
 triton_kernels
+```
+
+```{toctree}
+:maxdepth: 2
+:caption: Results
+
+results
 ```
 
 ```{toctree}

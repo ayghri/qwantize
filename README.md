@@ -97,4 +97,3 @@ cd docs && make html
 ## Contact
 
 - **Author**: Ayoub Ghriss, [research@ayghri.me](mailto:research@ayghri.me)
-- **GitHub**: [github.com/ayghri/quantkit](https://github.com/ayghri/quantkit)
