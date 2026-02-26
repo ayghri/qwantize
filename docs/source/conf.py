@@ -1,5 +1,9 @@
 """Sphinx configuration for quantkit documentation."""
 
+import os
+import sys
+sys.path.insert(0, os.path.abspath("../.."))
+
 project = "QuantKit"
 copyright = "2026, QuantKit contributors"
 # author = "Ayoub Ghriss"
