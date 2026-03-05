@@ -5,7 +5,7 @@ Optimal quantization methods for block-scaled formats.
 ## Installation
 
 ```bash
-pip install -e .
+pip install qwantize
 ```
 
 Requires PyTorch (>=2.0) and Triton (>=3.0).
