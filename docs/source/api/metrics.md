@@ -1,5 +1,5 @@
 # Metrics
 
 ```{eval-rst}
-.. autofunction:: quantkit.metrics.compute_metrics
+.. autofunction:: qwantize.metrics.compute_metrics
 ```

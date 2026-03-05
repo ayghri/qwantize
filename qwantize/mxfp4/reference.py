@@ -132,7 +132,7 @@ def mxfp4_naive(W, dim=-1, return_dequant=False):
 def mxfp4_optimal(W, dim=-1, return_dequant=False):
     """Optimal MXFP4 quantization via bounded search over UE8M0 scales.
 
-    Same algorithm as :func:`~quantkit.nvfp4.reference.nvfp4_optimal`,
+    Same algorithm as :func:`~qwantize.nvfp4.reference.nvfp4_optimal`,
     adapted for UE8M0 power-of-2 scales. Since consecutive UE8M0 scales
     differ by a factor of 2, the optimal is always within 1 step of naive.
 

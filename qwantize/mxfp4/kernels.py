@@ -164,7 +164,7 @@ def mxfp4_optimal_kernel(
 def mxfp4_naive_triton(W, dim=-1, return_dequant=False):
     """Naive MXFP4 quantization using Triton kernel with inline PTX ASM.
 
-    GPU-accelerated version of :func:`~quantkit.mxfp4.reference.mxfp4_naive`.
+    GPU-accelerated version of :func:`~qwantize.mxfp4.reference.mxfp4_naive`.
 
     Args:
         W: Input tensor. ``W.shape[dim]`` must be 16 or 32 (the block size).
@@ -174,7 +174,7 @@ def mxfp4_naive_triton(W, dim=-1, return_dequant=False):
     Returns:
         ``(scales, quants)`` by default, or ``(scales, quants, dequant)``
         if *return_dequant* is ``True``. See
-        :func:`~quantkit.mxfp4.reference.mxfp4_naive` for shape details.
+        :func:`~qwantize.mxfp4.reference.mxfp4_naive` for shape details.
     """
     dim = dim % W.ndim
     block_size = W.shape[dim]
@@ -212,7 +212,7 @@ def mxfp4_naive_triton(W, dim=-1, return_dequant=False):
 def mxfp4_optimal_triton(W, dim=-1, return_dequant=False):
     """Optimal MXFP4 quantization using Triton kernel with inline PTX ASM.
 
-    GPU-accelerated version of :func:`~quantkit.mxfp4.reference.mxfp4_optimal`.
+    GPU-accelerated version of :func:`~qwantize.mxfp4.reference.mxfp4_optimal`.
     Compares naive scale ``s0`` with ``2*s0`` (one UE8M0 step up) and picks
     whichever has lower SSE.
 
@@ -224,7 +224,7 @@ def mxfp4_optimal_triton(W, dim=-1, return_dequant=False):
     Returns:
         ``(scales, quants)`` by default, or ``(scales, quants, dequant)``
         if *return_dequant* is ``True``. See
-        :func:`~quantkit.mxfp4.reference.mxfp4_optimal` for shape details.
+        :func:`~qwantize.mxfp4.reference.mxfp4_optimal` for shape details.
     """
     dim = dim % W.ndim
     block_size = W.shape[dim]
@@ -267,7 +267,7 @@ def mxfp4_optimal_triton(W, dim=-1, return_dequant=False):
 def mxfp4_naive_torch(W, dim=-1, return_dequant=False):
     """Naive MXFP4 quantization using pure PyTorch operations.
 
-    Functionally identical to :func:`~quantkit.mxfp4.reference.mxfp4_naive`
+    Functionally identical to :func:`~qwantize.mxfp4.reference.mxfp4_naive`
     but uses vectorized ``argmin`` over the full signed codebook instead of
     ``bucketize``.
 
@@ -279,7 +279,7 @@ def mxfp4_naive_torch(W, dim=-1, return_dequant=False):
     Returns:
         ``(scales, quants)`` by default, or ``(scales, quants, dequant)``
         if *return_dequant* is ``True``. See
-        :func:`~quantkit.mxfp4.reference.mxfp4_naive` for shape details.
+        :func:`~qwantize.mxfp4.reference.mxfp4_naive` for shape details.
     """
     dim = dim % W.ndim
     block_size = W.shape[dim]
@@ -327,7 +327,7 @@ def mxfp4_optimal_torch(W, dim=-1, return_dequant=False):
     Returns:
         ``(scales, quants)`` by default, or ``(scales, quants, dequant)``
         if *return_dequant* is ``True``. See
-        :func:`~quantkit.mxfp4.reference.mxfp4_optimal` for shape details.
+        :func:`~qwantize.mxfp4.reference.mxfp4_optimal` for shape details.
     """
     dim = dim % W.ndim
     block_size = W.shape[dim]

@@ -1,7 +1,7 @@
 """Analyze bit-level distance between naive and optimal FP8 E4M3 scales."""
 
 import torch
-from quantkit.nvfp4.reference import (
+from qwantize.nvfp4.reference import (
     build_fp8_e4m3_scales,
     nvfp4_naive,
     nvfp4_optimal,

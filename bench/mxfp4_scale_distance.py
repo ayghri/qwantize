@@ -1,7 +1,7 @@
 """Analyze scale distances and bounded search quality for MXFP4/UE8M0."""
 
 import torch
-from quantkit.mxfp4.reference import (
+from qwantize.mxfp4.reference import (
     build_ue8m0_scales,
     mxfp4_naive,
     mxfp4_optimal,
@@ -12,7 +12,7 @@ from quantkit.mxfp4.reference import (
     Q_MAX,
     D_0,
 )
-from quantkit.metrics import compute_metrics
+from qwantize.metrics import compute_metrics
 
 DEVICE = torch.device("cuda")
 W_PATH = "/buckets/checkpoints/layer_0_W.cpt"

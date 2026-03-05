@@ -248,7 +248,7 @@ def nvfp4_optimal_hessian_kernel(
 def nvfp4_naive_triton(W, dim=-1, return_dequant=False):
     """Naive NVFP4 quantization using Triton kernel with inline PTX ASM.
 
-    GPU-accelerated version of :func:`~quantkit.nvfp4.reference.nvfp4_naive`.
+    GPU-accelerated version of :func:`~qwantize.nvfp4.reference.nvfp4_naive`.
 
     Args:
         W: Input tensor. ``W.shape[dim]`` must be 16 or 32 (the block size).
@@ -258,7 +258,7 @@ def nvfp4_naive_triton(W, dim=-1, return_dequant=False):
     Returns:
         ``(scales, quants)`` by default, or ``(scales, quants, dequant)``
         if *return_dequant* is ``True``. See
-        :func:`~quantkit.nvfp4.reference.nvfp4_naive` for shape details.
+        :func:`~qwantize.nvfp4.reference.nvfp4_naive` for shape details.
     """
     dim = dim % W.ndim
     block_size = W.shape[dim]
@@ -296,7 +296,7 @@ def nvfp4_naive_triton(W, dim=-1, return_dequant=False):
 def nvfp4_optimal_triton(W, dim=-1, return_dequant=False):
     """Optimal NVFP4 quantization using Triton kernel with inline PTX ASM.
 
-    GPU-accelerated version of :func:`~quantkit.nvfp4.reference.nvfp4_optimal`.
+    GPU-accelerated version of :func:`~qwantize.nvfp4.reference.nvfp4_optimal`.
 
     Args:
         W: Input tensor. ``W.shape[dim]`` must be 16 or 32 (the block size).
@@ -306,7 +306,7 @@ def nvfp4_optimal_triton(W, dim=-1, return_dequant=False):
     Returns:
         ``(scales, quants)`` by default, or ``(scales, quants, dequant)``
         if *return_dequant* is ``True``. See
-        :func:`~quantkit.nvfp4.reference.nvfp4_optimal` for shape details.
+        :func:`~qwantize.nvfp4.reference.nvfp4_optimal` for shape details.
     """
     dim = dim % W.ndim
     block_size = W.shape[dim]
@@ -355,7 +355,7 @@ def nvfp4_optimal_hessian_triton(W, dim=-1, return_dequant=False, X=None):
     """Hessian-aware optimal NVFP4 quantization using Triton kernel.
 
     GPU-accelerated version of
-    :func:`~quantkit.nvfp4.reference.nvfp4_optimal_hessian`.
+    :func:`~qwantize.nvfp4.reference.nvfp4_optimal_hessian`.
 
     Args:
         W: Input tensor. ``W.shape[dim]`` must be 16 or 32 (the block size).
@@ -366,7 +366,7 @@ def nvfp4_optimal_hessian_triton(W, dim=-1, return_dequant=False, X=None):
     Returns:
         ``(scales, quants)`` by default, or ``(scales, quants, dequant)``
         if *return_dequant* is ``True``. See
-        :func:`~quantkit.nvfp4.reference.nvfp4_optimal_hessian` for shape details.
+        :func:`~qwantize.nvfp4.reference.nvfp4_optimal_hessian` for shape details.
     """
     assert X is not None, "X (activations) required for Hessian-aware scale search"
     dim = dim % W.ndim

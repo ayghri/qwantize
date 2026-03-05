@@ -1,11 +1,11 @@
-"""Sphinx configuration for quantkit documentation."""
+"""Sphinx configuration for qwantize documentation."""
 
 import os
 import sys
 sys.path.insert(0, os.path.abspath("../.."))
 
-project = "QuantKit"
-copyright = "2026, QuantKit contributors"
+project = "Qwantize"
+copyright = "2026, Qwantize contributors"
 # author = "Ayoub Ghriss"
 
 extensions = [
@@ -37,5 +37,6 @@ source_suffix = {
 }
 
 html_static_path = ["_static"]
-html_logo = "_static/quantkitlogo.png"
+html_logo = "_static/qwantizelogo.png"
+html_favicon = "_static/qwantizelogo.png"
 html_css_files = ["custom.css"]

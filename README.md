@@ -1,4 +1,4 @@
-# QuantKit
+# Qwantize
 
 Optimal quantization methods for block-scaled formats.
 
@@ -30,7 +30,7 @@ Requires PyTorch and Triton (for GPU kernels).
 ## Usage
 
 ```python
-from quantkit import nvfp4_naive, nvfp4_optimal, nvfp4_dequantize, compute_metrics
+from qwantize import nvfp4_naive, nvfp4_optimal, nvfp4_dequantize, compute_metrics
 
 # W has shape (..., block_size) where block_size is 16 or 32
 W_blocked = W.reshape(M, K // 32, 32)
@@ -51,7 +51,7 @@ metrics = compute_metrics(W, W_dq.reshape(M, K), X)
 Triton-accelerated versions:
 
 ```python
-from quantkit import nvfp4_optimal_triton, nvfp4_optimal_hessian_triton
+from qwantize import nvfp4_optimal_triton, nvfp4_optimal_hessian_triton
 
 scales, quants, W_dq = nvfp4_optimal_triton(W_blocked, dim=-1, return_dequant=True)
 
@@ -85,7 +85,7 @@ python bench/full_bench.py
 
 ## Documentation
 
-Full documentation: [quantkit.readthedocs.io](https://quantkit.readthedocs.io/)
+Full documentation: [qwantize.readthedocs.io](https://qwantize.readthedocs.io/)
 
 Build locally:
 

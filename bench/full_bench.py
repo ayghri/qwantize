@@ -2,15 +2,15 @@
 
 import torch
 import time
-from quantkit.nvfp4.reference import nvfp4_naive, nvfp4_optimal, nvfp4_optimal_hessian
-from quantkit.nvfp4.kernels import (
+from qwantize.nvfp4.reference import nvfp4_naive, nvfp4_optimal, nvfp4_optimal_hessian
+from qwantize.nvfp4.kernels import (
     nvfp4_naive_triton, nvfp4_optimal_triton, nvfp4_optimal_hessian_triton,
 )
-from quantkit.mxfp4.reference import mxfp4_naive, mxfp4_optimal, mxfp4_optimal_hessian
-from quantkit.mxfp4.kernels import (
+from qwantize.mxfp4.reference import mxfp4_naive, mxfp4_optimal, mxfp4_optimal_hessian
+from qwantize.mxfp4.kernels import (
     mxfp4_naive_triton, mxfp4_optimal_triton,
 )
-from quantkit.metrics import compute_metrics
+from qwantize.metrics import compute_metrics
 
 DEVICE = torch.device("cuda")
 W_PATH = "/buckets/checkpoints/layer_0_W.cpt"

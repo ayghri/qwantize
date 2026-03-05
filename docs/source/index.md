@@ -1,6 +1,14 @@
-# QuantKit
+# Qwantize
 
 Optimal quantization methods for block-scaled formats.
+
+## Installation
+
+```bash
+pip install -e .
+```
+
+Requires PyTorch (>=2.0) and Triton (>=3.0).
 
 ## Formats
 
@@ -10,7 +18,7 @@ Optimal quantization methods for block-scaled formats.
 ## Quick Start
 
 ```python
-from quantkit import nvfp4_naive, nvfp4_optimal, nvfp4_dequantize, compute_metrics
+from qwantize import nvfp4_naive, nvfp4_optimal, nvfp4_dequantize, compute_metrics
 
 # W has shape (..., block_size) where block_size is 16 or 32
 # dim specifies which dimension is the block dimension (default: -1)
@@ -57,4 +65,4 @@ api/metrics
 ## Contact
 
 - **Author**: Ayoub Ghriss, [research@ayghri.me](mailto:research@ayghri.me)
-- **GitHub**: [github.com/ayghri/quantkit](https://github.com/ayghri/quantkit)
+- **GitHub**: [github.com/ayghri/qwantize](https://github.com/ayghri/qwantize)

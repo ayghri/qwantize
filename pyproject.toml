@@ -1,9 +1,9 @@
 [tool.poetry]
-name = "quantkit"
+name = "qwantize"
 version = "0.1.0"
 description = "Optimal block-scaled FP4 quants (NVFP4, MXFP4)"
 authors = ["Ayoub G. <research@ayghri.me>"]
-packages = [{include = "quantkit"}]
+packages = [{include = "qwantize"}]
 readme = "README.md"
 
 [build-system]
