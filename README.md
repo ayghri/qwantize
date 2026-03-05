@@ -22,10 +22,10 @@ All methods have both pure-PyTorch (reference) and Triton (GPU-accelerated) impl
 ## Install
 
 ```bash
-pip install -e .
+pip install qwantize
 ```
 
-Requires PyTorch and Triton (for GPU kernels).
+Requires PyTorch (>=2.0) and Triton (>=3.0).
 
 ## Usage
 

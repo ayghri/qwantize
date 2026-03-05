@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "qwantize"
-version = "0.1.0"
+version = "0.1.1"
 description = "Optimal block-scaled FP4 quants (NVFP4, MXFP4)"
 authors = ["Ayoub G. <research@ayghri.me>"]
 packages = [{include = "qwantize"}]
