@@ -10,6 +10,10 @@ pip install qwantize
 
 Requires PyTorch (>=2.0) and Triton (>=3.0).
 
+## Repository
+
+- **GitHub**: [github.com/ayghri/qwantize](https://github.com/ayghri/qwantize)
+
 ## Formats
 
 - **NVFP4** -- FP4 E2M1 with FP8 E4M3 scales (block sizes 16, 32)
@@ -62,7 +66,3 @@ api/mxfp4
 api/metrics
 ```
 
-## Contact
-
-- **Author**: Ayoub Ghriss, [research@ayghri.me](mailto:research@ayghri.me)
-- **GitHub**: [github.com/ayghri/qwantize](https://github.com/ayghri/qwantize)
