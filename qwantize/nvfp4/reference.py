@@ -263,7 +263,7 @@ def _compute_block_hessian_error(x, s, H_blocks, M_dim, num_col_blocks, block_si
     return E_H.reshape(-1)  # (N,)
 
 
-def nvfp4_optimal_hessian(W, dim=-1, return_dequant=False, X=None):
+def nvfp4_optimal_hessian(W, dim=-1, return_dequant=False, X=None, H_blocks=None):
     """Hessian-aware optimal NVFP4 scale search.
 
     Like :func:`nvfp4_optimal`, searches over FP8 E4M3 scale candidates using
@@ -277,7 +277,9 @@ def nvfp4_optimal_hessian(W, dim=-1, return_dequant=False, X=None):
         W: Input tensor. ``W.shape[dim]`` must be 16 or 32 (the block size).
         dim: Dimension along which to quantize (default: -1).
         return_dequant: If ``True``, also return the dequantized tensor.
-        X: Activation tensor of shape ``(T, K)``. Required.
+        X: Activation tensor of shape ``(T, K)``. H computed as X_j^T @ X_j.
+        H_blocks: Pre-computed block Hessians of shape ``(num_col_blocks, bs, bs)``.
+            If provided, X is ignored.
 
     Returns:
         ``(scales, quants)`` by default, or ``(scales, quants, dequant)``
@@ -288,7 +290,7 @@ def nvfp4_optimal_hessian(W, dim=-1, return_dequant=False, X=None):
         - **quants**: Signed FP4 codebook values. Same shape as *W*.
         - **dequant**: ``quants * scales`` broadcast. Same shape as *W*.
     """
-    assert X is not None, "X (activations) required for Hessian-aware scale search"
+    assert X is not None or H_blocks is not None, "X or H_blocks required"
     dim = dim % W.ndim
     block_size = W.shape[dim]
     assert block_size in (16, 32)
@@ -298,20 +300,24 @@ def nvfp4_optimal_hessian(W, dim=-1, return_dequant=False, X=None):
     x = x.reshape(-1, block_size)
     N = x.shape[0]
 
-    # --- Block Hessians from X ---
-    K_dim = X.shape[1]
-    num_col_blocks = K_dim // block_size
+    # --- Block Hessians ---
+    if H_blocks is not None:
+        H = H_blocks.to(x.device)
+        num_col_blocks = H.shape[0]
+    else:
+        K_dim = X.shape[1]
+        num_col_blocks = K_dim // block_size
+        H = torch.empty(num_col_blocks, block_size, block_size, device=x.device)
+        batch_t = 8192
+        for j in range(num_col_blocks):
+            acc = torch.zeros(block_size, block_size, device=x.device)
+            for t0 in range(0, X.shape[0], batch_t):
+                Xj = X[t0 : t0 + batch_t, j * block_size : (j + 1) * block_size].float()
+                acc.addmm_(Xj.T, Xj)
+            H[j] = acc
+
     M_dim = N // num_col_blocks
     assert N == M_dim * num_col_blocks
-
-    H = torch.empty(num_col_blocks, block_size, block_size, device=x.device)
-    batch_t = 8192
-    for j in range(num_col_blocks):
-        acc = torch.zeros(block_size, block_size, device=x.device)
-        for t0 in range(0, X.shape[0], batch_t):
-            Xj = X[t0 : t0 + batch_t, j * block_size : (j + 1) * block_size].float()
-            acc.addmm_(Xj.T, Xj)
-        H[j] = acc
 
     all_scales = build_fp8_e4m3_scales(device=x.device)
 

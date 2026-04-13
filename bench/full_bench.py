@@ -1,4 +1,4 @@
-"""Full benchmark: all NVFP4 + MXFP4 methods, torch vs Triton."""
+"""Full benchmark: all INT8 + NVFP4 + MXFP4 methods, torch vs Triton."""
 
 import torch
 import time
@@ -10,6 +10,7 @@ from qwantize.mxfp4.reference import mxfp4_naive, mxfp4_optimal, mxfp4_optimal_h
 from qwantize.mxfp4.kernels import (
     mxfp4_naive_triton, mxfp4_optimal_triton,
 )
+from qwantize.int8.reference import int8_naive, int8_optimal, int8_optimal_hessian
 from qwantize.metrics import compute_metrics
 
 DEVICE = torch.device("cuda")
@@ -41,6 +42,29 @@ def main():
 
     M, K = W.shape
 
+    # INT8 block sizes
+    for bs in [32, 64, 128, 256]:
+        print(f"\n{'='*70}")
+        print(f"INT8 Block size: {bs}")
+        print(f"{'='*70}")
+
+        W_b = W.reshape(M, K // bs, bs)
+        methods = []
+
+        methods.append(bench("Naive (torch)", lambda: int8_naive(W_b, return_dequant=True), W, M, K, X))
+        methods.append(bench("SSE-Optimal (torch)", lambda: int8_optimal(W_b, return_dequant=True), W, M, K, X))
+        methods.append(bench("H-Optimal (torch)", lambda: int8_optimal_hessian(W_b, return_dequant=True, X=X), W, M, K, X))
+
+        print(f"\n{'Method':<28} {'Time':>10} {'Weight%':>10} {'Output%':>10}")
+        print("-" * 60)
+        for name, m, t in methods:
+            if t >= 1.0:
+                ts = f"{t:.2f} s"
+            else:
+                ts = f"{t*1000:.1f} ms"
+            print(f"{name:<28} {ts:>10} {m['weight_error_pct']:>9.4f}% {m['output_error_pct']:>9.4f}%")
+
+    # FP4 formats
     for fmt in ["NVFP4", "MXFP4"]:
         for bs in [16, 32]:
             print(f"\n{'='*70}")

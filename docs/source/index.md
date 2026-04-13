@@ -16,6 +16,7 @@ Requires PyTorch (>=2.0) and Triton (>=3.0).
 
 ## Formats
 
+- **INT8** -- Symmetric INT8 with FP8 E4M3 scales (block sizes 32, 64, 128, 256)
 - **NVFP4** -- FP4 E2M1 with FP8 E4M3 scales (block sizes 16, 32)
 - **MXFP4** -- FP4 E2M1 with UE8M0 (power-of-2) scales (block sizes 16, 32)
 
@@ -48,6 +49,7 @@ optimal_scale_search
 hessian_scale_search
 scale_distance
 triton_kernels
+custom_codebook
 ```
 
 ```{toctree}
@@ -61,6 +63,7 @@ results
 :maxdepth: 2
 :caption: API Reference
 
+api/int8
 api/nvfp4
 api/mxfp4
 api/metrics
