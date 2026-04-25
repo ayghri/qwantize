@@ -23,6 +23,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 sys.path.insert(0, os.path.dirname(__file__))
 from custom_codebook import custom_optimal, custom_optimal_hessian
 from qwantize.nvfp4.reference import nvfp4_optimal, nvfp4_optimal_hessian
+from qwantize.nvint4.reference import nvint4_optimal, nvint4_optimal_hessian
 from eval_ppl import evaluate
 
 MODEL_NAME = "Qwen/Qwen3-4B"
@@ -189,6 +190,10 @@ def main():
          lambda W, return_dequant=True: custom_optimal(W, cb_int4, bd_int4, return_dequant=return_dequant)),
         ("INT4 H-Optimal L0",
          lambda W, return_dequant=True: custom_optimal_hessian(W, cb_int4, bd_int4, return_dequant=return_dequant, H_blocks=H_blocks_L0)),
+        ("NVINT4 Optimal",
+         lambda W, return_dequant=True: nvint4_optimal(W, return_dequant=return_dequant)),
+        ("NVINT4 H-Optimal L0",
+         lambda W, return_dequant=True: nvint4_optimal_hessian(W, return_dequant=return_dequant, H_blocks=H_blocks_L0)),
     ]
 
     for mi, (method_name, quant_fn) in enumerate(methods):

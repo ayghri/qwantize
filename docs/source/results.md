@@ -238,7 +238,9 @@ sequential) as a natural consequence of the stronger output-error optimization.
 
 ## Exotic Scales
 
-> Reproduce with: `/misc/envs/quant/bin/python experiments/quant_exotic_scales.py`
+> Reproduce with:
+> - `/misc/envs/quant/bin/python experiments/quant_exotic_scales.py` (no GPTQ)
+> - `/misc/envs/quant/bin/python experiments/quant_gptq_exotic_scales.py` (with GPTQ-Seq, GPTQ-Ord)
 
 NVFP4 stores per-block scales in **FP8 E4M3** (signed, 1+4+3 bits, 126 positive
 values). Scales are always non-negative, so the sign bit is wasted. We try
@@ -253,58 +255,113 @@ two unsigned 8-bit alternatives that re-purpose the sign bit:
 
 All codes are treated as finite (no NaN/Inf reserved). The FP4 codebook
 $\{0, 0.5, 1, 1.5, 2, 3, 4, 6\}$ is unchanged; only the per-block scale
-representation differs.
+representation differs. Each table below crosses
+{Naive, SSE-Optimal, H-Optimal} with {no-GPTQ, GPTQ-Seq, GPTQ-Ord} for
+each scale grid.
 
 ### Block Size 16
 
-| Scale | Approach | # Values | Weight Error | Output Error | Time |
+| Scale | Approach | GPTQ | Weight Error | Output Error | Time |
 |:--|:--|:--:|:--:|:--:|--:|
-| E4M3 | Naive | 126 | 10.05% | 6.89% | 11ms |
-| E4M3 | Optimal | 126 | 8.74% | 6.04% | 269ms |
-| E4M3 | H-Optimal | 126 | 9.35% | 5.31% | 1.3s |
-| UE4M4 | Naive | 255 | 9.54% | 6.55% | 3ms |
-| UE4M4 | Optimal | 255 | 8.19% | 5.66% | 402ms |
-| UE4M4 | H-Optimal | 255 | 8.84% | 4.89% | 2.0s |
-| UE5M3 | Naive | 255 | 9.47% | 6.51% | 3ms |
-| UE5M3 | Optimal | 255 | 8.13% | 5.63% | 343ms |
-| UE5M3 | H-Optimal | 255 | 8.77% | **4.88%** | 1.8s |
+| E4M3 | Naive | — | 10.05% | 6.89% | 87ms |
+| E4M3 | GPTQ+Naive | Seq | 12.58% | 5.53% | 402ms |
+| E4M3 | GPTQ-Ord+Naive | Ord | 13.18% | 5.18% | 492ms |
+| E4M3 | Optimal | — | 8.74% | 6.04% | 7.4s |
+| E4M3 | GPTQ+Optimal | Seq | 10.94% | 4.82% | 7.5s |
+| E4M3 | GPTQ-Ord+Optimal | Ord | 11.45% | 4.52% | 14.8s |
+| E4M3 | H-Optimal | — | 9.37% | 5.34% | 7.6s |
+| E4M3 | GPTQ+H-Optimal | Seq | 11.14% | 4.37% | 7.9s |
+| E4M3 | GPTQ-Ord+H-Optimal | Ord | 11.53% | 4.21% | 15.5s |
+| UE4M4 | Naive | — | 9.54% | 6.55% | 84ms |
+| UE4M4 | GPTQ+Naive | Seq | 11.97% | 5.25% | 394ms |
+| UE4M4 | GPTQ-Ord+Naive | Ord | 12.54% | 4.93% | 505ms |
+| UE4M4 | Optimal | — | 8.19% | 5.66% | 14.1s |
+| UE4M4 | GPTQ+Optimal | Seq | 10.26% | 4.52% | 14.5s |
+| UE4M4 | GPTQ-Ord+Optimal | Ord | 10.75% | 4.23% | 28.3s |
+| UE4M4 | H-Optimal | — | 8.95% | 4.97% | 14.7s |
+| UE4M4 | GPTQ+H-Optimal | Seq | 10.58% | 4.08% | 15.1s |
+| UE4M4 | GPTQ-Ord+H-Optimal | Ord | 10.94% | **3.94%** | 29.9s |
+| UE5M3 | Naive | — | 9.47% | 6.51% | 85ms |
+| UE5M3 | GPTQ+Naive | Seq | 11.89% | 5.22% | 393ms |
+| UE5M3 | GPTQ-Ord+Naive | Ord | 12.46% | 4.89% | 504ms |
+| UE5M3 | Optimal | — | 8.13% | 5.63% | 12.5s |
+| UE5M3 | GPTQ+Optimal | Seq | 10.19% | 4.49% | 12.7s |
+| UE5M3 | GPTQ-Ord+Optimal | Ord | 10.67% | 4.21% | 25.1s |
+| UE5M3 | H-Optimal | — | 8.92% | 4.99% | 12.8s |
+| UE5M3 | GPTQ+H-Optimal | Seq | 10.56% | 4.09% | 13.2s |
+| UE5M3 | GPTQ-Ord+H-Optimal | Ord | 10.92% | **3.95%** | 25.9s |
 
 ### Block Size 32
 
-| Scale | Approach | # Values | Weight Error | Output Error | Time |
+| Scale | Approach | GPTQ | Weight Error | Output Error | Time |
 |:--|:--|:--:|:--:|:--:|--:|
-| E4M3 | Naive | 126 | 10.42% | 7.15% | 3ms |
-| E4M3 | Optimal | 126 | 9.57% | 6.61% | 180ms |
-| E4M3 | H-Optimal | 126 | 10.12% | 5.95% | 677ms |
-| UE4M4 | Naive | 255 | 10.18% | 6.99% | 3ms |
-| UE4M4 | Optimal | 255 | 9.16% | 6.32% | 337ms |
-| UE4M4 | H-Optimal | 255 | 9.76% | 5.61% | 1.2s |
-| UE5M3 | Naive | 255 | 10.16% | 6.98% | 3ms |
-| UE5M3 | Optimal | 255 | 9.14% | 6.31% | 267ms |
-| UE5M3 | H-Optimal | 255 | 9.73% | **5.60%** | 990ms |
+| E4M3 | Naive | — | 10.42% | 7.15% | 37ms |
+| E4M3 | GPTQ+Naive | Seq | 13.04% | 5.74% | 271ms |
+| E4M3 | GPTQ-Ord+Naive | Ord | 13.53% | 5.43% | 318ms |
+| E4M3 | Optimal | — | 9.57% | 6.61% | 3.5s |
+| E4M3 | GPTQ+Optimal | Seq | 11.98% | 5.29% | 3.7s |
+| E4M3 | GPTQ-Ord+Optimal | Ord | 12.42% | 5.01% | 7.2s |
+| E4M3 | H-Optimal | — | 10.16% | 6.02% | 3.7s |
+| E4M3 | GPTQ+H-Optimal | Seq | 12.21% | 4.91% | 3.9s |
+| E4M3 | GPTQ-Ord+H-Optimal | Ord | 12.57% | 4.75% | 7.5s |
+| UE4M4 | Naive | — | 10.18% | 6.99% | 42ms |
+| UE4M4 | GPTQ+Naive | Seq | 12.76% | 5.61% | 271ms |
+| UE4M4 | GPTQ-Ord+Naive | Ord | 13.24% | 5.31% | 326ms |
+| UE4M4 | Optimal | — | 9.16% | 6.32% | 6.8s |
+| UE4M4 | GPTQ+Optimal | Seq | 11.47% | 5.06% | 7.0s |
+| UE4M4 | GPTQ-Ord+Optimal | Ord | 11.88% | 4.79% | 13.8s |
+| UE4M4 | H-Optimal | — | 9.90% | 5.73% | 7.1s |
+| UE4M4 | GPTQ+H-Optimal | Seq | 11.85% | 4.70% | 7.3s |
+| UE4M4 | GPTQ-Ord+H-Optimal | Ord | 12.19% | **4.56%** | 14.4s |
+| UE5M3 | Naive | — | 10.16% | 6.98% | 42ms |
+| UE5M3 | GPTQ+Naive | Seq | 12.74% | 5.61% | 271ms |
+| UE5M3 | GPTQ-Ord+Naive | Ord | 13.22% | 5.31% | 327ms |
+| UE5M3 | Optimal | — | 9.14% | 6.31% | 5.9s |
+| UE5M3 | GPTQ+Optimal | Seq | 11.44% | 5.06% | 6.2s |
+| UE5M3 | GPTQ-Ord+Optimal | Ord | 11.86% | 4.78% | 12.1s |
+| UE5M3 | H-Optimal | — | 9.89% | 5.75% | 6.1s |
+| UE5M3 | GPTQ+H-Optimal | Seq | 11.86% | 4.71% | 6.3s |
+| UE5M3 | GPTQ-Ord+H-Optimal | Ord | 12.20% | **4.58%** | 12.3s |
 
-### Output error reduction vs E4M3 (same approach)
+### Best output error per scale
 
-| Approach | BS=16: UE4M4 | BS=16: UE5M3 | BS=32: UE4M4 | BS=32: UE5M3 |
+| Scale | BS=16 best | BS=32 best |
+|:--|:--:|:--:|
+| E4M3 | 4.21% | 4.75% |
+| UE4M4 | **3.94%** | **4.56%** |
+| UE5M3 | 3.95% | 4.58% |
+
+(All bests are achieved by GPTQ-Ord+H-Optimal.)
+
+### Output error reduction vs E4M3 (same approach + mode)
+
+| Approach + mode | BS=16: UE4M4 | BS=16: UE5M3 | BS=32: UE4M4 | BS=32: UE5M3 |
 |:--|:--:|:--:|:--:|:--:|
-| Naive     | -0.34pp | -0.38pp | -0.16pp | -0.17pp |
-| Optimal   | -0.38pp | -0.41pp | -0.29pp | -0.30pp |
-| H-Optimal | **-0.42pp** | **-0.43pp** | **-0.34pp** | **-0.35pp** |
+| Naive (no GPTQ) | -0.34pp | -0.38pp | -0.16pp | -0.17pp |
+| Optimal (no GPTQ) | -0.38pp | -0.41pp | -0.29pp | -0.30pp |
+| H-Optimal (no GPTQ) | -0.37pp | -0.35pp | -0.29pp | -0.27pp |
+| GPTQ+Naive | -0.28pp | -0.31pp | -0.13pp | -0.13pp |
+| GPTQ+Optimal | -0.30pp | -0.33pp | -0.23pp | -0.23pp |
+| GPTQ+H-Optimal | -0.29pp | -0.28pp | -0.21pp | -0.20pp |
+| GPTQ-Ord+Naive | -0.25pp | -0.29pp | -0.12pp | -0.12pp |
+| GPTQ-Ord+Optimal | -0.29pp | -0.31pp | -0.22pp | -0.23pp |
+| GPTQ-Ord+H-Optimal | **-0.27pp** | **-0.26pp** | **-0.19pp** | **-0.17pp** |
 
-Both unsigned formats beat E4M3 across every approach and block size. The
-gain is largest at BS=16 H-Optimal (~0.42--0.43pp = ~8% relative reduction
-in output error), and grows monotonically with the strength of the scale
-search: more candidates buy nothing for naive/amax, but compound with
-H-Optimal's per-block scale selection.
+Both unsigned formats beat E4M3 across every approach × mode × block size.
+The relative gain shrinks somewhat once GPTQ is layered on (GPTQ already
+compensates for some of the per-block scale-snapping loss), but the absolute
+output error keeps falling -- the **best result of every scale grid is
+GPTQ-Ord+H-Optimal**, and UE4M4/UE5M3 still beat E4M3 there by 0.17--0.27pp.
 
-UE4M4 and UE5M3 perform almost identically (within 0.01--0.04pp), even
-though UE5M3 has 1000x more dynamic range. Weight magnitudes in this layer
-fall well within E4M3's range, so extra range is wasted -- what matters is
-**grid density near the optimal scale**, and both formats double the density
-relative to E4M3.
+UE4M4 and UE5M3 perform almost identically (within 0.01--0.03pp) across the
+full grid, even though UE5M3 has $\sim$250x more dynamic range. Weight
+magnitudes in this layer fall well within E4M3's range, so extra range is
+wasted -- what matters is **grid density near the optimal scale**, and both
+formats double the density relative to E4M3.
 
 Caveat: standard FP8 E4M3 hardware support exists on Hopper/Ada; UE4M4 and
 UE5M3 do not have hardware encoders, so naive-mode quantization is slower
 in production (the snap requires a table lookup rather than a hardware
 cast). Optimal/H-Optimal modes are unaffected since they iterate over the
-scale table either way.
+scale table either way; the ~2x slowdown there is purely from doubling the
+candidate count (255 vs 126).
