@@ -160,14 +160,19 @@ def _topp_kl_from_logits(logits_ref, logits_quant, p_threshold, chunk_size=64):
 # ---------------------------------------------------------------------------
 # Dataset loading
 # ---------------------------------------------------------------------------
-def _load_dataset(dataset_name, split):
+def _load_dataset(dataset_name, split, dataset_config=None):
     if dataset_name == "wikitext":
         ds = load_dataset("EleutherAI/wikitext_document_level",
                           "wikitext-2-raw-v1", split=split)
         return ds, "page", True
     else:
-        ds = load_dataset(dataset_name, split=split)
-        text_field = "text" if "text" in ds.column_names else ds.column_names[0]
+        if dataset_config:
+            ds = load_dataset(dataset_name, dataset_config, split=split, streaming=True)
+            # Streaming datasets don't have column_names; peek at first item
+            text_field = "text"
+        else:
+            ds = load_dataset(dataset_name, split=split)
+            text_field = "text" if "text" in ds.column_names else ds.column_names[0]
         return ds, text_field, False
 
 
@@ -175,8 +180,8 @@ def _load_dataset(dataset_name, split):
 # Main evaluation
 # ---------------------------------------------------------------------------
 def evaluate(model, tokenizer, model_ref=None, ref_lm_head_weight=None,
-             top_p=0.9, max_length=2048, max_docs=None,
-             dataset_name="wikitext", split="test", verbose=True):
+             top_p=0.9, max_length=2048, max_docs=None, max_tokens=None,
+             dataset_name="wikitext", dataset_config=None, split="test", verbose=True):
     """Evaluate perplexity and optionally top-p KL divergence.
 
     Computes all lm_eval wikitext metrics:
@@ -210,7 +215,7 @@ def evaluate(model, tokenizer, model_ref=None, ref_lm_head_weight=None,
     device = next(model.parameters()).device
     device_ref = next(model_ref.parameters()).device if model_ref else None
 
-    ds, text_field, detokenize = _load_dataset(dataset_name, split)
+    ds, text_field, detokenize = _load_dataset(dataset_name, split, dataset_config)
 
     prefix_token_id = tokenizer.bos_token_id
     if prefix_token_id is None:
@@ -227,13 +232,15 @@ def evaluate(model, tokenizer, model_ref=None, ref_lm_head_weight=None,
     total_tokens = 0
     all_kls = [] if compute_kl else None
 
-    n_docs = max_docs if max_docs else len(ds)
+    n_docs = max_docs if max_docs else (len(ds) if hasattr(ds, '__len__') else float('inf'))
     for di, doc in enumerate(ds):
         if di >= n_docs:
             break
+        if max_tokens and total_tokens >= max_tokens:
+            break
         raw_text = doc[text_field]
 
-        # Word/byte counts from original text (matches lm_eval)
+        # Word/byte counts from original doc before detokenization (matches lm_eval)
         words = len(re.split(r"\s+", raw_text))
         nbytes = len(raw_text.encode("utf-8"))
 
@@ -309,7 +316,8 @@ def evaluate(model, tokenizer, model_ref=None, ref_lm_head_weight=None,
             w_ppl = math.exp(-total_loglik / total_words)
             b_ppl = math.exp(-total_loglik / total_bytes)
             bpb = -total_loglik / total_bytes / math.log(2)
-            msg = (f"  doc {di+1}/{n_docs}  tokens={total_tokens}  "
+            n_docs_str = n_docs if n_docs != float('inf') else '?'
+            msg = (f"  doc {di+1}/{n_docs_str}  tokens={total_tokens}  "
                    f"word_ppl={w_ppl:.4f}  byte_ppl={b_ppl:.4f}  bpb={bpb:.4f}")
             if all_kls:
                 running_kl = torch.cat(all_kls)
@@ -326,7 +334,7 @@ def evaluate(model, tokenizer, model_ref=None, ref_lm_head_weight=None,
         "total_words": total_words,
         "total_bytes": total_bytes,
         "total_tokens": total_tokens,
-        "num_docs": n_docs,
+        "num_docs": di + 1,
         "elapsed_s": elapsed,
     }
 

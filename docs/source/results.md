@@ -171,6 +171,15 @@ first and their error is compensated across the most remaining columns).
 | MXFP4 | H-Optimal | — | 11.10% | 7.62% | 6.9s |
 | MXFP4 | GPTQ+H-Optimal | Seq | 13.82% | 6.10% | 7.1s |
 | MXFP4 | GPTQ-Ord+H-Optimal | Ord | 14.45% | **5.71%** | 14.0s |
+| NVINT4 | Naive | — | 9.46% | 6.55% | 65ms |
+| NVINT4 | GPTQ+Naive | Seq | 11.84% | 5.23% | 376ms |
+| NVINT4 | GPTQ-Ord+Naive | Ord | 12.37% | 4.89% | 414ms |
+| NVINT4 | Optimal | — | 9.20% | 6.40% | 5.6s |
+| NVINT4 | GPTQ+Optimal | Seq | 11.54% | 5.12% | 5.9s |
+| NVINT4 | GPTQ-Ord+Optimal | Ord | 12.06% | 4.76% | 11.5s |
+| NVINT4 | H-Optimal | — | 9.60% | 6.04% | 5.9s |
+| NVINT4 | GPTQ+H-Optimal | Seq | 11.73% | 4.88% | 6.1s |
+| NVINT4 | GPTQ-Ord+H-Optimal | Ord | 12.20% | **4.65%** | 12.0s |
 
 ### Block Size 32
 
@@ -194,6 +203,15 @@ first and their error is compensated across the most remaining columns).
 | MXFP4 | H-Optimal | — | 11.42% | 7.80% | 3.4s |
 | MXFP4 | GPTQ+H-Optimal | Seq | 14.19% | 6.25% | 3.6s |
 | MXFP4 | GPTQ-Ord+H-Optimal | Ord | 14.68% | **5.92%** | 7.0s |
+| NVINT4 | Naive | — | 10.36% | 7.18% | 24ms |
+| NVINT4 | GPTQ+Naive | Seq | 13.00% | 5.72% | 248ms |
+| NVINT4 | GPTQ-Ord+Naive | Ord | 13.45% | 5.42% | 282ms |
+| NVINT4 | Optimal | — | 10.13% | 7.10% | 2.8s |
+| NVINT4 | GPTQ+Optimal | Seq | 12.71% | 5.65% | 3.0s |
+| NVINT4 | GPTQ-Ord+Optimal | Ord | 13.14% | 5.33% | 5.8s |
+| NVINT4 | H-Optimal | — | 10.59% | 6.92% | 2.9s |
+| NVINT4 | GPTQ+H-Optimal | Seq | 13.12% | 5.57% | 3.1s |
+| NVINT4 | GPTQ-Ord+H-Optimal | Ord | 13.54% | **5.34%** | 6.0s |
 
 ### Ordered vs Sequential GPTQ
 
@@ -207,6 +225,9 @@ Additional output error reduction from reordering (pp over sequential):
 | MXFP4 | Naive | **-0.47pp** | **-0.38pp** |
 | MXFP4 | Optimal | **-0.41pp** | **-0.37pp** |
 | MXFP4 | H-Optimal | **-0.39pp** | -0.33pp |
+| NVINT4 | Naive | **-0.34pp** | -0.31pp |
+| NVINT4 | Optimal | **-0.36pp** | -0.32pp |
+| NVINT4 | H-Optimal | -0.24pp | -0.23pp |
 
 Ordered GPTQ (quantizing highest-loss blocks first) consistently outperforms
 sequential GPTQ by 0.15--0.47pp. The gain is largest for MXFP4 (coarser scales
@@ -214,3 +235,76 @@ create bigger per-block errors to redistribute) and for naive/optimal approaches
 (H-Optimal already concentrates error where it matters least, leaving less room
 for reordering to help). Weight error increases slightly more (~0.4--0.6pp over
 sequential) as a natural consequence of the stronger output-error optimization.
+
+## Exotic Scales
+
+> Reproduce with: `/misc/envs/quant/bin/python experiments/quant_exotic_scales.py`
+
+NVFP4 stores per-block scales in **FP8 E4M3** (signed, 1+4+3 bits, 126 positive
+values). Scales are always non-negative, so the sign bit is wasted. We try
+two unsigned 8-bit alternatives that re-purpose the sign bit:
+
+- **UE4M4** -- 4-exp, 4-mantissa, bias 7. Trades the sign for one extra
+  mantissa bit. Same dynamic range as E4M3 (max $\approx$ 496 vs 448), but
+  **2x denser** scale grid (255 distinct positive values).
+- **UE5M3** -- 5-exp, 3-mantissa, bias 15. Same mantissa precision as E4M3
+  but **much wider** dynamic range (max $\approx$ 122880). Also 255 positive
+  values.
+
+All codes are treated as finite (no NaN/Inf reserved). The FP4 codebook
+$\{0, 0.5, 1, 1.5, 2, 3, 4, 6\}$ is unchanged; only the per-block scale
+representation differs.
+
+### Block Size 16
+
+| Scale | Approach | # Values | Weight Error | Output Error | Time |
+|:--|:--|:--:|:--:|:--:|--:|
+| E4M3 | Naive | 126 | 10.05% | 6.89% | 11ms |
+| E4M3 | Optimal | 126 | 8.74% | 6.04% | 269ms |
+| E4M3 | H-Optimal | 126 | 9.35% | 5.31% | 1.3s |
+| UE4M4 | Naive | 255 | 9.54% | 6.55% | 3ms |
+| UE4M4 | Optimal | 255 | 8.19% | 5.66% | 402ms |
+| UE4M4 | H-Optimal | 255 | 8.84% | 4.89% | 2.0s |
+| UE5M3 | Naive | 255 | 9.47% | 6.51% | 3ms |
+| UE5M3 | Optimal | 255 | 8.13% | 5.63% | 343ms |
+| UE5M3 | H-Optimal | 255 | 8.77% | **4.88%** | 1.8s |
+
+### Block Size 32
+
+| Scale | Approach | # Values | Weight Error | Output Error | Time |
+|:--|:--|:--:|:--:|:--:|--:|
+| E4M3 | Naive | 126 | 10.42% | 7.15% | 3ms |
+| E4M3 | Optimal | 126 | 9.57% | 6.61% | 180ms |
+| E4M3 | H-Optimal | 126 | 10.12% | 5.95% | 677ms |
+| UE4M4 | Naive | 255 | 10.18% | 6.99% | 3ms |
+| UE4M4 | Optimal | 255 | 9.16% | 6.32% | 337ms |
+| UE4M4 | H-Optimal | 255 | 9.76% | 5.61% | 1.2s |
+| UE5M3 | Naive | 255 | 10.16% | 6.98% | 3ms |
+| UE5M3 | Optimal | 255 | 9.14% | 6.31% | 267ms |
+| UE5M3 | H-Optimal | 255 | 9.73% | **5.60%** | 990ms |
+
+### Output error reduction vs E4M3 (same approach)
+
+| Approach | BS=16: UE4M4 | BS=16: UE5M3 | BS=32: UE4M4 | BS=32: UE5M3 |
+|:--|:--:|:--:|:--:|:--:|
+| Naive     | -0.34pp | -0.38pp | -0.16pp | -0.17pp |
+| Optimal   | -0.38pp | -0.41pp | -0.29pp | -0.30pp |
+| H-Optimal | **-0.42pp** | **-0.43pp** | **-0.34pp** | **-0.35pp** |
+
+Both unsigned formats beat E4M3 across every approach and block size. The
+gain is largest at BS=16 H-Optimal (~0.42--0.43pp = ~8% relative reduction
+in output error), and grows monotonically with the strength of the scale
+search: more candidates buy nothing for naive/amax, but compound with
+H-Optimal's per-block scale selection.
+
+UE4M4 and UE5M3 perform almost identically (within 0.01--0.04pp), even
+though UE5M3 has 1000x more dynamic range. Weight magnitudes in this layer
+fall well within E4M3's range, so extra range is wasted -- what matters is
+**grid density near the optimal scale**, and both formats double the density
+relative to E4M3.
+
+Caveat: standard FP8 E4M3 hardware support exists on Hopper/Ada; UE4M4 and
+UE5M3 do not have hardware encoders, so naive-mode quantization is slower
+in production (the snap requires a table lookup rather than a hardware
+cast). Optimal/H-Optimal modes are unaffected since they iterate over the
+scale table either way.

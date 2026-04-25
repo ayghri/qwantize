@@ -9,4 +9,5 @@ from .mxfp4.kernels import (
     mxfp4_optimal_torch,
 )
 from .int8.reference import int8_naive, int8_optimal, int8_optimal_hessian, int8_dequantize
+from .nvint4.reference import nvint4_naive, nvint4_optimal, nvint4_optimal_hessian, nvint4_dequantize
 from .fp4 import fp4_unpack
