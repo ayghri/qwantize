@@ -125,7 +125,7 @@ grid, this re-weighting almost always lands on the same scale.
 
 ## GPTQ Quantization
 
-> Reproduce with: `/misc/envs/quant/bin/python experiments/quant_gptq_strided.py`
+> Reproduce with: `python experiments/quant_gptq_strided.py`
 
 GPTQ (Frantar et al., 2022) applies Optimal Brain Surgeon error compensation
 to sequential column-block quantization. After quantizing each block of columns,
@@ -239,8 +239,8 @@ sequential) as a natural consequence of the stronger output-error optimization.
 ## Exotic Scales
 
 > Reproduce with:
-> - `/misc/envs/quant/bin/python experiments/quant_exotic_scales.py` (no GPTQ)
-> - `/misc/envs/quant/bin/python experiments/quant_gptq_exotic_scales.py` (with GPTQ-Seq, GPTQ-Ord)
+> - `python experiments/quant_exotic_scales.py` (no GPTQ)
+> - `python experiments/quant_gptq_exotic_scales.py` (with GPTQ-Seq, GPTQ-Ord)
 
 NVFP4 stores per-block scales in **FP8 E4M3** (signed, 1+4+3 bits, 126 positive
 values). Scales are always non-negative, so the sign bit is wasted. We try

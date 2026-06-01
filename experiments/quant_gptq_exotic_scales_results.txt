@@ -1,0 +1,139 @@
+/misc/envs/quant/lib/python3.11/site-packages/torch/cuda/__init__.py:789: UserWarning: Can't initialize NVML
+  warnings.warn("Can't initialize NVML")
+FP4 GPTQ + Exotic Scales Benchmark (Sequential & Ordered)
+Device: cuda:0
+
+W: 2560x9728  X: 244449x9728
+Building Hessian... done (9728x9728)
+
+================================================================================
+Block size: 16  (608 blocks)
+================================================================================
+  E4M3 Naive              W=10.0511%  O= 6.8871%      87ms
+  GPTQ+E4M3 Naive         W=12.5767%  O= 5.5255%  dO=-1.36pp     402ms
+  GPTQord+E4M3 Naive      W=13.1761%  O= 5.1814%  dO=-1.71pp  vs seq=-0.344pp     492ms
+  E4M3 Optimal            W= 8.7375%  O= 6.0364%      7.4s
+  GPTQ+E4M3 Optimal       W=10.9426%  O= 4.8209%  dO=-1.22pp      7.5s
+  GPTQord+E4M3 Optimal    W=11.4540%  O= 4.5157%  dO=-1.52pp  vs seq=-0.305pp     14.8s
+  E4M3 H-Optimal          W= 9.3744%  O= 5.3376%      7.6s
+  GPTQ+E4M3 H-Optimal     W=11.1355%  O= 4.3678%  dO=-0.97pp      7.9s
+  GPTQord+E4M3 H-Optimal  W=11.5268%  O= 4.2087%  dO=-1.13pp  vs seq=-0.159pp     15.5s
+  UE4M4 Naive             W= 9.5372%  O= 6.5474%      84ms
+  GPTQ+UE4M4 Naive        W=11.9679%  O= 5.2517%  dO=-1.30pp     394ms
+  GPTQord+UE4M4 Naive     W=12.5392%  O= 4.9266%  dO=-1.62pp  vs seq=-0.325pp     505ms
+  UE4M4 Optimal           W= 8.1918%  O= 5.6552%     14.1s
+  GPTQ+UE4M4 Optimal      W=10.2593%  O= 4.5215%  dO=-1.13pp     14.5s
+  GPTQord+UE4M4 Optimal   W=10.7470%  O= 4.2314%  dO=-1.42pp  vs seq=-0.290pp     28.3s
+  UE4M4 H-Optimal         W= 8.9460%  O= 4.9735%     14.7s
+  GPTQ+UE4M4 H-Optimal    W=10.5813%  O= 4.0821%  dO=-0.89pp     15.1s
+  GPTQord+UE4M4 H-Optimal  W=10.9384%  O= 3.9450%  dO=-1.03pp  vs seq=-0.137pp     29.9s
+  UE5M3 Naive             W= 9.4725%  O= 6.5058%      85ms
+  GPTQ+UE5M3 Naive        W=11.8887%  O= 5.2221%  dO=-1.28pp     393ms
+  GPTQord+UE5M3 Naive     W=12.4570%  O= 4.8947%  dO=-1.61pp  vs seq=-0.327pp     504ms
+  UE5M3 Optimal           W= 8.1336%  O= 5.6269%     12.5s
+  GPTQ+UE5M3 Optimal      W=10.1889%  O= 4.4942%  dO=-1.13pp     12.7s
+  GPTQord+UE5M3 Optimal   W=10.6709%  O= 4.2081%  dO=-1.42pp  vs seq=-0.286pp     25.1s
+  UE5M3 H-Optimal         W= 8.9156%  O= 4.9901%     12.8s
+  GPTQ+UE5M3 H-Optimal    W=10.5644%  O= 4.0936%  dO=-0.90pp     13.2s
+  GPTQord+UE5M3 H-Optimal  W=10.9239%  O= 3.9455%  dO=-1.04pp  vs seq=-0.148pp     25.9s
+
+================================================================================
+Block size: 32  (304 blocks)
+================================================================================
+  E4M3 Naive              W=10.4235%  O= 7.1488%      37ms
+  GPTQ+E4M3 Naive         W=13.0446%  O= 5.7389%  dO=-1.41pp     271ms
+  GPTQord+E4M3 Naive      W=13.5302%  O= 5.4348%  dO=-1.71pp  vs seq=-0.304pp     318ms
+  E4M3 Optimal            W= 9.5744%  O= 6.6123%      3.5s
+  GPTQ+E4M3 Optimal       W=11.9816%  O= 5.2908%  dO=-1.32pp      3.7s
+  GPTQord+E4M3 Optimal    W=12.4233%  O= 5.0131%  dO=-1.60pp  vs seq=-0.278pp      7.2s
+  E4M3 H-Optimal          W=10.1636%  O= 6.0153%      3.7s
+  GPTQ+E4M3 H-Optimal     W=12.2118%  O= 4.9066%  dO=-1.11pp      3.9s
+  GPTQord+E4M3 H-Optimal  W=12.5716%  O= 4.7540%  dO=-1.26pp  vs seq=-0.153pp      7.5s
+  UE4M4 Naive             W=10.1794%  O= 6.9898%      42ms
+  GPTQ+UE4M4 Naive        W=12.7596%  O= 5.6056%  dO=-1.38pp     271ms
+  GPTQord+UE4M4 Naive     W=13.2383%  O= 5.3138%  dO=-1.68pp  vs seq=-0.292pp     326ms
+  UE4M4 Optimal           W= 9.1599%  O= 6.3234%      6.8s
+  GPTQ+UE4M4 Optimal      W=11.4676%  O= 5.0590%  dO=-1.26pp      7.0s
+  GPTQord+UE4M4 Optimal   W=11.8830%  O= 4.7938%  dO=-1.53pp  vs seq=-0.265pp     13.8s
+  UE4M4 H-Optimal         W= 9.8953%  O= 5.7327%      7.1s
+  GPTQ+UE4M4 H-Optimal    W=11.8483%  O= 4.6983%  dO=-1.03pp      7.3s
+  GPTQord+UE4M4 H-Optimal  W=12.1857%  O= 4.5619%  dO=-1.17pp  vs seq=-0.136pp     14.4s
+  UE5M3 Naive             W=10.1636%  O= 6.9837%      42ms
+  GPTQ+UE5M3 Naive        W=12.7431%  O= 5.6088%  dO=-1.37pp     271ms
+  GPTQord+UE5M3 Naive     W=13.2177%  O= 5.3079%  dO=-1.68pp  vs seq=-0.301pp     327ms
+  UE5M3 Optimal           W= 9.1376%  O= 6.3138%      5.9s
+  GPTQ+UE5M3 Optimal      W=11.4394%  O= 5.0552%  dO=-1.26pp      6.2s
+  GPTQord+UE5M3 Optimal   W=11.8580%  O= 4.7834%  dO=-1.53pp  vs seq=-0.272pp     12.1s
+  UE5M3 H-Optimal         W= 9.8914%  O= 5.7541%      6.1s
+  GPTQ+UE5M3 H-Optimal    W=11.8573%  O= 4.7141%  dO=-1.04pp      6.3s
+  GPTQord+UE5M3 H-Optimal  W=12.1956%  O= 4.5764%  dO=-1.18pp  vs seq=-0.138pp     12.3s
+
+
+================================================================================
+Markdown for docs/source/results.md
+================================================================================
+
+### Block Size 16
+
+| Scale | Approach | GPTQ | Weight Error | Output Error | Time |
+|:--|:--|:--:|:--:|:--:|--:|
+| E4M3 | Naive | — | 10.05% | 6.89% | 87ms |
+| E4M3 | GPTQ+Naive | Seq | 12.58% | 5.53% | 402ms |
+| E4M3 | GPTQ-Ord+Naive | Ord | 13.18% | 5.18% | 492ms |
+| E4M3 | Optimal | — | 8.74% | 6.04% | 7.4s |
+| E4M3 | GPTQ+Optimal | Seq | 10.94% | 4.82% | 7.5s |
+| E4M3 | GPTQ-Ord+Optimal | Ord | 11.45% | 4.52% | 14.8s |
+| E4M3 | H-Optimal | — | 9.37% | 5.34% | 7.6s |
+| E4M3 | GPTQ+H-Optimal | Seq | 11.14% | 4.37% | 7.9s |
+| E4M3 | GPTQ-Ord+H-Optimal | Ord | 11.53% | 4.21% | 15.5s |
+| UE4M4 | Naive | — | 9.54% | 6.55% | 84ms |
+| UE4M4 | GPTQ+Naive | Seq | 11.97% | 5.25% | 394ms |
+| UE4M4 | GPTQ-Ord+Naive | Ord | 12.54% | 4.93% | 505ms |
+| UE4M4 | Optimal | — | 8.19% | 5.66% | 14.1s |
+| UE4M4 | GPTQ+Optimal | Seq | 10.26% | 4.52% | 14.5s |
+| UE4M4 | GPTQ-Ord+Optimal | Ord | 10.75% | 4.23% | 28.3s |
+| UE4M4 | H-Optimal | — | 8.95% | 4.97% | 14.7s |
+| UE4M4 | GPTQ+H-Optimal | Seq | 10.58% | 4.08% | 15.1s |
+| UE4M4 | GPTQ-Ord+H-Optimal | Ord | 10.94% | 3.94% | 29.9s |
+| UE5M3 | Naive | — | 9.47% | 6.51% | 85ms |
+| UE5M3 | GPTQ+Naive | Seq | 11.89% | 5.22% | 393ms |
+| UE5M3 | GPTQ-Ord+Naive | Ord | 12.46% | 4.89% | 504ms |
+| UE5M3 | Optimal | — | 8.13% | 5.63% | 12.5s |
+| UE5M3 | GPTQ+Optimal | Seq | 10.19% | 4.49% | 12.7s |
+| UE5M3 | GPTQ-Ord+Optimal | Ord | 10.67% | 4.21% | 25.1s |
+| UE5M3 | H-Optimal | — | 8.92% | 4.99% | 12.8s |
+| UE5M3 | GPTQ+H-Optimal | Seq | 10.56% | 4.09% | 13.2s |
+| UE5M3 | GPTQ-Ord+H-Optimal | Ord | 10.92% | 3.95% | 25.9s |
+
+### Block Size 32
+
+| Scale | Approach | GPTQ | Weight Error | Output Error | Time |
+|:--|:--|:--:|:--:|:--:|--:|
+| E4M3 | Naive | — | 10.42% | 7.15% | 37ms |
+| E4M3 | GPTQ+Naive | Seq | 13.04% | 5.74% | 271ms |
+| E4M3 | GPTQ-Ord+Naive | Ord | 13.53% | 5.43% | 318ms |
+| E4M3 | Optimal | — | 9.57% | 6.61% | 3.5s |
+| E4M3 | GPTQ+Optimal | Seq | 11.98% | 5.29% | 3.7s |
+| E4M3 | GPTQ-Ord+Optimal | Ord | 12.42% | 5.01% | 7.2s |
+| E4M3 | H-Optimal | — | 10.16% | 6.02% | 3.7s |
+| E4M3 | GPTQ+H-Optimal | Seq | 12.21% | 4.91% | 3.9s |
+| E4M3 | GPTQ-Ord+H-Optimal | Ord | 12.57% | 4.75% | 7.5s |
+| UE4M4 | Naive | — | 10.18% | 6.99% | 42ms |
+| UE4M4 | GPTQ+Naive | Seq | 12.76% | 5.61% | 271ms |
+| UE4M4 | GPTQ-Ord+Naive | Ord | 13.24% | 5.31% | 326ms |
+| UE4M4 | Optimal | — | 9.16% | 6.32% | 6.8s |
+| UE4M4 | GPTQ+Optimal | Seq | 11.47% | 5.06% | 7.0s |
+| UE4M4 | GPTQ-Ord+Optimal | Ord | 11.88% | 4.79% | 13.8s |
+| UE4M4 | H-Optimal | — | 9.90% | 5.73% | 7.1s |
+| UE4M4 | GPTQ+H-Optimal | Seq | 11.85% | 4.70% | 7.3s |
+| UE4M4 | GPTQ-Ord+H-Optimal | Ord | 12.19% | 4.56% | 14.4s |
+| UE5M3 | Naive | — | 10.16% | 6.98% | 42ms |
+| UE5M3 | GPTQ+Naive | Seq | 12.74% | 5.61% | 271ms |
+| UE5M3 | GPTQ-Ord+Naive | Ord | 13.22% | 5.31% | 327ms |
+| UE5M3 | Optimal | — | 9.14% | 6.31% | 5.9s |
+| UE5M3 | GPTQ+Optimal | Seq | 11.44% | 5.06% | 6.2s |
+| UE5M3 | GPTQ-Ord+Optimal | Ord | 11.86% | 4.78% | 12.1s |
+| UE5M3 | H-Optimal | — | 9.89% | 5.75% | 6.1s |
+| UE5M3 | GPTQ+H-Optimal | Seq | 11.86% | 4.71% | 6.3s |
+| UE5M3 | GPTQ-Ord+H-Optimal | Ord | 12.20% | 4.58% | 12.3s |
+

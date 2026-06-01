@@ -47,6 +47,7 @@ metrics = compute_metrics(W, W_dq.reshape(M, K), X)
 
 optimal_scale_search
 hessian_scale_search
+spgl1_compensation
 scale_distance
 triton_kernels
 custom_codebook

@@ -1,4 +1,4 @@
-#!/misc/envs/quant/bin/python
+#!/usr/bin/env python
 """FP4 quantization with exotic FP8 scale grids.
 
 Compares three FP8 scale formats for FP4 (E2M1) block-scaled quantization:
@@ -9,7 +9,7 @@ Compares three FP8 scale formats for FP4 (E2M1) block-scaled quantization:
 For each scale type and block size {16, 32}, runs Naive / SSE-Optimal /
 H-Optimal scale search using the same FP4 codebook {0, 0.5, 1, 1.5, 2, 3, 4, 6}.
 
-Usage: /misc/envs/quant/bin/python experiments/quant_exotic_scales.py
+Usage: python experiments/quant_exotic_scales.py
 """
 
 import time

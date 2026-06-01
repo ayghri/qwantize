@@ -1,4 +1,4 @@
-#!/misc/envs/quant/bin/python
+#!/usr/bin/env python
 """GPTQ + as_strided benchmark for FP4 with exotic FP8 scale grids.
 
 Runs the full {Naive, SSE-Optimal, H-Optimal} x {no-GPTQ, GPTQ-Seq, GPTQ-Ord}
@@ -7,7 +7,7 @@ grid for each scale format (E4M3, UE4M4, UE5M3) at block sizes 16 and 32.
 The FP4 codebook {0, 0.5, 1, 1.5, 2, 3, 4, 6} is unchanged across runs;
 only the per-block scale grid differs.
 
-Usage: /misc/envs/quant/bin/python experiments/quant_gptq_exotic_scales.py
+Usage: python experiments/quant_gptq_exotic_scales.py
 """
 
 import time

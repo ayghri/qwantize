@@ -1,10 +1,10 @@
-#!/misc/envs/quant/bin/python
+#!/usr/bin/env python
 """INT4 H-Optimal GPTQ benchmark: seq, col-ord, row-ord for BS 16/32.
 
 INT4: uniform 8-level codebook [0, 1/7, 2/7, ..., 1] with FP8 E4M3 scales.
 Same GPTQ framework as NVFP4/MXFP4 benchmarks.
 
-Usage: /misc/envs/quant/bin/python experiments/quant_gptq_int4.py
+Usage: python experiments/quant_gptq_int4.py
 """
 
 import os
