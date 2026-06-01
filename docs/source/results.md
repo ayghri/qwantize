@@ -365,3 +365,92 @@ in production (the snap requires a table lookup rather than a hardware
 cast). Optimal/H-Optimal modes are unaffected since they iterate over the
 scale table either way; the ~2x slowdown there is purely from doubling the
 candidate count (255 vs 126).
+
+## Larger blocks: bs=64 (E4M3 scales) and bs=128 (FP16 scales)
+
+Same `layer_0` setup; W = 2560x9728, X = 244449x9728. Layouts here trade
+scale precision and block size for the same total bits/weight:
+
+| Config | Block | Scale | Scale b/w | Total b/w |
+|:--|:--:|:--:|:--:|:--:|
+| Baseline NVFP4 | 16 | FP8 E4M3 | 0.500 | 4.500 |
+| -- | 32 | FP8 E4M3 | 0.250 | 4.250 |
+| **New** | **64** | **FP8 E4M3** | **0.125** | **4.125** |
+| **New** | **128** | **FP16 E5M10** | **0.125** | **4.125** |
+
+For bs=128 + FP16, the snapped continuous optimum is essentially the true
+SSE / H-optimal minimum, so per-block scales are found by iterative
+alternation (q -> closed-form continuous s -> fp16 snap) rather than grid
+search.
+
+### bs=64, FP8 E4M3 scales (4.125 b/w)
+
+| Codebook | Approach | GPTQ | Weight Error | Output Error | Time |
+|:--|:--|:--:|:--:|:--:|--:|
+| FP4 | Naive | -- | 10.77% | 7.41% | 42ms |
+| FP4 | Optimal | -- | 10.19% | 7.05% | 1.0s |
+| FP4 | H-Optimal | -- | 10.66% | 6.48% | 21.8s |
+| FP4 | GPTQ-Ord+H-Optimal | Ord | 13.34% | 5.22% | 202s |
+| FP4 | GPTQ-Ord+H-Opt+SPGL1 | Ord | 13.28% | **4.65%** | 373s |
+| INT4 | Naive | -- | 11.37% | 7.88% | 9ms |
+| INT4 | Optimal | -- | 10.89% | 7.71% | 687ms |
+| INT4 | H-Optimal | -- | 11.37% | 7.23% | 21.6s |
+| INT4 | GPTQ-Ord+H-Optimal | Ord | 14.77% | 5.99% | 145s |
+| INT4 | GPTQ-Ord+H-Opt+SPGL1 | Ord | 15.24% | **5.22%** | 367s |
+
+### bs=128, FP16 E5M10 scales (4.125 b/w)
+
+| Codebook | Approach | GPTQ | Weight Error | Output Error | Time |
+|:--|:--|:--:|:--:|:--:|--:|
+| FP4 | Naive | -- | 11.00% | 7.56% | 8ms |
+| FP4 | Optimal (iter) | -- | 10.56% | 7.33% | 61ms |
+| FP4 | H-Optimal (iter) | -- | 10.76% | 6.88% | 158ms |
+| FP4 | GPTQ-Seq+Naive | Seq | 13.76% | 6.08% | 706ms |
+| FP4 | GPTQ-Ord+H-Optimal | Ord | 13.47% | 5.47% | 621ms |
+| FP4 | GPTQ-Ord+H-Opt+SPGL1 | Ord | 13.85% | **4.77%** | 30.4s |
+| INT4 | Naive | -- | 12.31% | 8.54% | 6ms |
+| INT4 | Optimal (iter) | -- | 11.49% | 8.27% | 80ms |
+| INT4 | H-Optimal (iter) | -- | 11.79% | 7.87% | 10.1s |
+| INT4 | GPTQ-Seq+Naive | Seq | 15.50% | 6.84% | 361ms |
+| INT4 | GPTQ-Ord+H-Optimal | Ord | 14.93% | 6.17% | 8.3s |
+| INT4 | GPTQ-Ord+H-Opt+SPGL1 | Ord | 15.37% | **5.35%** | 110s |
+
+### Same-budget head-to-head (4.125 b/w)
+
+| Codebook | Config | GPTQ+H-Opt O% | + SPGL1 O% | ΔO from SPGL1 |
+|:--|:--|:--:|:--:|:--:|
+| FP4 | bs=64, E4M3 | 5.22 | **4.65** | -0.57 |
+| FP4 | bs=128, FP16 | 5.47 | 4.77 | -0.70 |
+| INT4 | bs=64, E4M3 | 5.99 | **5.22** | -0.77 |
+| INT4 | bs=128, FP16 | 6.17 | 5.35 | -0.82 |
+
+At the same 4.125 b/w budget, bs=64 + E4M3 beats bs=128 + FP16 for both
+codebooks (FP4: -0.12pp, INT4: -0.13pp) -- coarser scale precision but
+tighter per-block fit wins out. SPGL1 contributes a larger absolute gain at
+the bs=128/FP16 point (~0.7-0.8pp) than at bs=64/E4M3 (~0.6-0.8pp), but
+not enough to flip the ordering.
+
+### Where these land vs the bs=16 best
+
+| Config | b/w | H-Opt O% | +SPGL1 O% |
+|:--|:--:|:--:|:--:|
+| FP4 bs=16, E4M3 (NVFP4) | 4.500 | 5.31 | **3.64** |
+| FP4 bs=64, E4M3 | 4.125 | 6.48 | 4.65 |
+| FP4 bs=128, FP16 | 4.125 | 6.88 | 4.77 |
+| INT4 bs=16, E4M3 (NVINT4) | 4.500 | 5.60 | (not run) |
+| INT4 bs=64, E4M3 | 4.125 | 7.23 | 5.22 |
+| INT4 bs=128, FP16 | 4.125 | 7.87 | 5.35 |
+
+FP4 dominates INT4 by ~0.6-0.9pp output error at every operating point.
+The codebook's wider dynamic range (0..6 vs symmetric 0..7) more efficiently
+captures the long-tailed per-block weight distribution at larger block sizes.
+
+### SPGL1 compensation method (recap)
+
+After each block is snapped (in descending H-loss order), instead of
+GPTQ's unconstrained `H_inv` error propagation, an L1-constrained SPGL1
+LASSO is solved on the not-yet-snapped columns to minimize
+`||X*(Delta_eff + delta)^T||_2` subject to `||delta||_1 <= tau`. Solved in
+reduced (Gram) form -- no `H^-1`, no Cholesky -- robust to ill-conditioned
+H. See `experiments/spgl1_gptq_*.py` for the implementations and
+`notes/progress_track_spgl1.md` for the full research log.
