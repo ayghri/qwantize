@@ -143,18 +143,21 @@ for benchmarks and deferred optimizations.
 
 ## 7. Results
 
-| Config | b/w | GPTQ-Ord+H-Opt O% | +SPGL1 O% | ΔO from SPGL1 |
+| Config | b/w | GPTQ-Ord+Opt O% | +SPGL1 O% | ΔO from SPGL1 |
 |:--|:--:|:--:|:--:|:--:|
-| FP4, bs=16, E4M3 | 4.500 | 4.21 | **3.64** | -0.57 |
-| FP4, bs=64, E4M3 | 4.125 | 5.22 | **4.65** | -0.57 |
-| FP4, bs=128, FP16 | 4.125 | 5.47 | **4.77** | -0.70 |
-| INT4, bs=64, E4M3 | 4.125 | 5.99 | **5.22** | -0.77 |
-| INT4, bs=128, FP16 | 4.125 | 6.17 | **5.35** | -0.82 |
+| FP4, bs=16, E4M3 | 4.500 | 4.21 (H-Opt) | **3.64** | -0.57 |
+| FP4, bs=32, FP16 | 4.500 | 4.91 (SSE-Opt) | **4.22** | -0.69 |
+| FP4, bs=64, E4M3 | 4.125 | 5.22 (H-Opt) | **4.65** | -0.57 |
+| FP4, bs=128, FP16 | 4.125 | 5.47 (H-Opt) | **4.77** | -0.70 |
+| INT4, bs=64, E4M3 | 4.125 | 5.99 (H-Opt) | **5.22** | -0.77 |
+| INT4, bs=128, FP16 | 4.125 | 6.17 (H-Opt) | **5.35** | -0.82 |
 
-SPGL1 contributes a consistent **0.55--0.80 pp** output-error reduction
-on top of the GPTQ-Ord + H-Opt baseline, across codebooks (FP4/INT4),
-block sizes (16/64/128), and scale formats (FP8/FP16). At every
-operating point tested, the SPGL1 variant is the best result.
+SPGL1 contributes a consistent **0.55--0.82 pp** output-error reduction
+across codebooks (FP4/INT4), block sizes (16/32/64/128), and scale formats
+(FP8/FP16). At every operating point tested, the SPGL1 variant is the best
+result. For bs=32 FP16, SSE-Opt is used for the per-block scale (the FP16
+grid is too fine to enumerate; SSE and H-weighted formulas converge to
+nearly identical results at this resolution).
 
 See the [Results page](results.md) for the full table and the
 [research log](https://github.com/ayghri/qwantize/blob/main/notes/progress_track_spgl1.md)

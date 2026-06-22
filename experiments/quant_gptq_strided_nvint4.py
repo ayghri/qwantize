@@ -1,4 +1,4 @@
-#!/misc/envs/quant/bin/python
+#!/usr/bin/env python
 """GPTQ + as_strided benchmark for NVINT4 (symmetric INT4, FP8 E4M3 scales).
 
 Mirrors experiments/quant_gptq_strided.py but for the NVINT4 format
@@ -9,7 +9,7 @@ Combinations:
   Approaches:  Naive, SSE-Optimal, H-Optimal
   Modes:       no-GPTQ, GPTQ-Seq, GPTQ-Ord (descending loss)
 
-Usage: /misc/envs/quant/bin/python experiments/quant_gptq_strided_nvint4.py
+Usage: python experiments/quant_gptq_strided_nvint4.py
 """
 
 import time

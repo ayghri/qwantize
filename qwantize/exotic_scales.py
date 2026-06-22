@@ -34,14 +34,18 @@ def _build_unsigned_fp8(exp_bits, mant_bits, device="cpu"):
     """
     assert exp_bits + mant_bits == 8
     bias = 2 ** (exp_bits - 1) - 1
-    n_exp = 2 ** exp_bits
-    n_mant = 2 ** mant_bits
+    n_exp = 2**exp_bits
+    n_mant = 2**mant_bits
 
-    e = torch.arange(n_exp, device=device, dtype=torch.float64).unsqueeze(-1)  # (n_exp, 1)
-    m = torch.arange(n_mant, device=device, dtype=torch.float64).unsqueeze(0)  # (1, n_mant)
+    e = torch.arange(n_exp, device=device, dtype=torch.float64).unsqueeze(
+        -1
+    )  # (n_exp, 1)
+    m = torch.arange(n_mant, device=device, dtype=torch.float64).unsqueeze(
+        0
+    )  # (1, n_mant)
 
-    sub = (m / n_mant) * (2.0 ** (1 - bias))                  # e == 0 row
-    nrm = (1.0 + m / n_mant) * torch.pow(2.0, e - bias)       # e >= 1 rows
+    sub = (m / n_mant) * (2.0 ** (1 - bias))  # e == 0 row
+    nrm = (1.0 + m / n_mant) * torch.pow(2.0, e - bias)  # e >= 1 rows
     vals = torch.where(e == 0, sub, nrm).reshape(-1)
     pos = vals[vals > 0].unique().sort().values
     return pos.float()

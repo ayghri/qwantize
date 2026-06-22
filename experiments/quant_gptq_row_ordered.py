@@ -1,4 +1,4 @@
-#!/misc/envs/quant/bin/python
+#!/usr/bin/env python
 """Row-by-row ordered GPTQ benchmark (batched).
 
 Each row gets its own column block ordering based on that row's
@@ -8,7 +8,7 @@ H_inv cross-term extraction, and batched matmul for error propagation.
 
 Compares: baseline, sequential GPTQ, column-ordered GPTQ, row-ordered GPTQ.
 
-Usage: /misc/envs/quant/bin/python experiments/quant_gptq_row_ordered.py
+Usage: python experiments/quant_gptq_row_ordered.py
 """
 
 import os

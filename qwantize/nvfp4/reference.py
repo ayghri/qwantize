@@ -1,5 +1,14 @@
 import torch
 
+
+# FP4 E2M1 codebook (actual values)
+FP4_CODEBOOK = torch.tensor([0.0, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 6.0])
+# Decision boundaries: midpoints between consecutive codebook values
+FP4_BOUNDARIES = torch.tensor([0.25, 0.75, 1.25, 1.75, 2.5, 3.5, 5.0])
+Q_MAX = 6.0
+D_0 = 0.25  # decision boundary for rounding to zero
+
+
 @torch.compiler.disable
 def _fp8_e4m3_snap(x):
     """Snap float32 values to nearest FP8 E4M3 representable value.
@@ -8,14 +17,6 @@ def _fp8_e4m3_snap(x):
     is unsupported on pre-Ada GPUs.
     """
     return x.to(torch.float8_e4m3fn).to(torch.float32)
-
-
-# FP4 E2M1 codebook (actual values)
-FP4_CODEBOOK = torch.tensor([0.0, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 6.0])
-# Decision boundaries: midpoints between consecutive codebook values
-FP4_BOUNDARIES = torch.tensor([0.25, 0.75, 1.25, 1.75, 2.5, 3.5, 5.0])
-Q_MAX = 6.0
-D_0 = 0.25  # decision boundary for rounding to zero
 
 
 @torch.compiler.disable
@@ -67,6 +68,39 @@ def fp4_dequantize(quants, s):
         Dequantized tensor with the same shape as *quants*.
     """
     return quants * s
+
+
+def nvfp4_encode_exact(W, block_size=16):
+    """Recover the EXACT nvfp4 representation (e2m1 index, sign, fp8 per-block scale) of a weight
+    that is ALREADY on the nvfp4 grid (e.g. a GPTQ output: ``W == codes * fp8_block_scale`` per
+    16-block). No quantization *decision* is made beyond identifying which fp8 block scale
+    reproduces W exactly: W's per-block max maps to one of the codebook maxima {6,4,3,2,1.5,1,0.5},
+    so ``scale = fp8_snap(amax / c)`` for that c gives zero error. This is what feeds the marlin
+    bit-packer, so marlin never re-derives scales or codes.
+
+    Returns:
+        codes_idx: [N, K] uint8, e2m1 magnitude index in 0..7.
+        signs:     [N, K] bool, True where W < 0.
+        fp8_scale: [N, K // block_size] float32, the per-block scale (fp8-e4m3 representable).
+    """
+    N, K = W.shape
+    nb = K // block_size
+    Wb = W.float().reshape(N, nb, block_size)
+    amax = Wb.abs().amax(-1, keepdim=True).clamp_min(1e-30)
+    best_s = amax / 6.0
+    best_er = torch.full_like(amax, float("inf"))
+    for c in (6.0, 4.0, 3.0, 2.0, 1.5, 1.0, 0.5):
+        s = _fp8_e4m3_snap(amax / c)
+        er = (fp4_quantize(Wb, s) * s - Wb).abs().amax(-1, keepdim=True)
+        upd = er < best_er
+        best_er = torch.where(upd, er, best_er)
+        best_s = torch.where(upd, s, best_s)
+    quants = fp4_quantize(Wb, best_s).reshape(N, K)
+    codes_idx = torch.bucketize(quants.abs(), FP4_BOUNDARIES.to(W.device)).to(
+        torch.uint8
+    )
+    signs = quants < 0
+    return codes_idx, signs, best_s.squeeze(-1)
 
 
 def compute_block_sse(x, s):
@@ -215,7 +249,10 @@ def nvfp4_optimal(W, dim=-1, return_dequant=False):
 
             # Full SSE computation
             s_broadcast = torch.full(
-                (x_active.shape[0], 1), s_f, device=x_active.device, dtype=x_active.dtype
+                (x_active.shape[0], 1),
+                s_f,
+                device=x_active.device,
+                dtype=x_active.dtype,
             )
             E_s = compute_block_sse(x_active, s_broadcast.squeeze(-1))
 
@@ -449,9 +486,9 @@ def nvfp4_admm(W, dim=-1, return_dequant=False, X=None, n_outer=3, n_inner=10):
     K_dim = X.shape[1]
     num_col_blocks = K_dim // block_size
     M_dim = N // num_col_blocks
-    assert N == M_dim * num_col_blocks, (
-        f"Weight blocks ({N}) must equal M * K//bs ({M_dim} * {num_col_blocks})"
-    )
+    assert (
+        N == M_dim * num_col_blocks
+    ), f"Weight blocks ({N}) must equal M * K//bs ({M_dim} * {num_col_blocks})"
 
     # Compute H_j = X_j^T @ X_j in batches to avoid OOM on large X
     H = torch.empty(num_col_blocks, block_size, block_size, device=x.device)

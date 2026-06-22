@@ -20,14 +20,13 @@ Reference for the algorithm:
   basis pursuit solutions", SIAM J. Sci. Comput., 31(2):890-912, 2008.
 """
 
-import time
-
 import torch
 
 
 # ---------------------------------------------------------------------------
 # Projection onto L1 ball
 # ---------------------------------------------------------------------------
+
 
 def project_l1_ball_batched(x, tau):
     """Project each row of *x* onto its L1 ball of radius *tau*.
@@ -61,19 +60,19 @@ def project_l1_ball_batched(x, tau):
     sign = x.sign()
     a = x.abs()
 
-    cur_l1 = a.sum(dim=-1)                              # (B,)
-    needs_proj = cur_l1 > tau                            # (B,)
+    cur_l1 = a.sum(dim=-1)  # (B,)
+    needs_proj = cur_l1 > tau  # (B,)
 
-    sorted_a, _ = a.sort(dim=-1, descending=True)        # (B, N)
-    cs = sorted_a.cumsum(dim=-1)                         # (B, N)
+    sorted_a, _ = a.sort(dim=-1, descending=True)  # (B, N)
+    cs = sorted_a.cumsum(dim=-1)  # (B, N)
     k_range = torch.arange(1, N + 1, device=x.device, dtype=x.dtype).unsqueeze(0)
-    alphas = (cs - tau.unsqueeze(-1)) / k_range          # (B, N)
+    alphas = (cs - tau.unsqueeze(-1)) / k_range  # (B, N)
 
     # rho = number of active entries = largest k where sorted_a[k] > alphas[k]
     active = sorted_a > alphas
-    rho = active.sum(dim=-1).clamp(min=1)                # (B,)
+    rho = active.sum(dim=-1).clamp(min=1)  # (B,)
     theta = alphas.gather(dim=-1, index=(rho - 1).unsqueeze(-1)).squeeze(-1)
-    theta = theta.clamp(min=0)                           # (B,)
+    theta = theta.clamp(min=0)  # (B,)
 
     proj_abs = (a - theta.unsqueeze(-1)).clamp(min=0)
     proj = sign * proj_abs
@@ -95,6 +94,7 @@ def linf_norm_batched(x):
 # Default operator for a shared dense A
 # ---------------------------------------------------------------------------
 
+
 def make_dense_op(A):
     """Build (matvec, rmatvec) closures for a dense operator A : R^n -> R^m.
 
@@ -110,10 +110,10 @@ def make_dense_op(A):
     """
     AT = A.T.contiguous()
 
-    def matvec(x):                                # (B, n) -> (B, m)
+    def matvec(x):  # (B, n) -> (B, m)
         return x @ AT
 
-    def rmatvec(r):                               # (B, m) -> (B, n)
+    def rmatvec(r):  # (B, m) -> (B, n)
         return r @ A
 
     return matvec, rmatvec
@@ -187,7 +187,7 @@ def spgl1_lasso_batched(
     # Initial residual, gradient
     r = b - matvec(x)
     g = -rmatvec(r)
-    f = 0.5 * (r * r).sum(dim=-1)                       # (B,)
+    f = 0.5 * (r * r).sum(dim=-1)  # (B,)
 
     # Best so far
     fbest = f.clone()
@@ -195,16 +195,15 @@ def spgl1_lasso_batched(
     rbest = r.clone()
 
     # Non-monotone history
-    last_fv = torch.full((B, n_prev_vals), -float("inf"),
-                         device=device, dtype=dtype)
+    last_fv = torch.full((B, n_prev_vals), -float("inf"), device=device, dtype=dtype)
     last_fv[:, 0] = f
 
     # Initial BB step from projected gradient direction
-    dx = project_l1_ball_batched(x - g, tau) - x         # (B, n)
+    dx = project_l1_ball_batched(x - g, tau) - x  # (B, n)
     dx_inf = linf_norm_batched(dx).clamp(min=1e-30)
-    gstep = (1.0 / dx_inf).clamp(min=step_min, max=step_max)   # (B,)
+    gstep = (1.0 / dx_inf).clamp(min=step_min, max=step_max)  # (B,)
 
-    bnorm = b.norm(dim=-1)                               # (B,)
+    bnorm = b.norm(dim=-1)  # (B,)
 
     info = {
         "rnorm_hist": [],
@@ -218,8 +217,8 @@ def spgl1_lasso_batched(
     }
 
     for it in range(max_iter):
-        gnorm = linf_norm_batched(-g)                     # dual L1 norm = Linf
-        rnorm = r.norm(dim=-1)                            # (B,)
+        gnorm = linf_norm_batched(-g)  # dual L1 norm = Linf
+        rnorm = r.norm(dim=-1)  # (B,)
         # Relative duality gap (per row); see van den Berg / Friedlander.
         gap = (r * (r - b)).sum(dim=-1) + tau_per_row(tau, B, device, dtype) * gnorm
         rgap = gap.abs() / f.clamp(min=1.0)
@@ -231,10 +230,13 @@ def spgl1_lasso_batched(
         # Per-row optimality: relative gap small OR residual << ||b||
         opt = (rgap <= opt_tol) | (rnorm < opt_tol * bnorm)
         if verbose:
-            print(f"  [it {it:4d}]  rnorm: max={rnorm.max():.4e}  "
-                  f"med={rnorm.median():.4e}  "
-                  f"rgap: max={rgap.max():.2e}  "
-                  f"opt: {opt.sum().item()}/{B}", flush=True)
+            print(
+                f"  [it {it:4d}]  rnorm: max={rnorm.max():.4e}  "
+                f"med={rnorm.median():.4e}  "
+                f"rgap: max={rgap.max():.2e}  "
+                f"opt: {opt.sum().item()}/{B}",
+                flush=True,
+            )
         if opt.all():
             info["exit_stat"] = EXIT_OPTIMAL
             info["exit_iter"] = it
@@ -243,7 +245,7 @@ def spgl1_lasso_batched(
         # ---- Projected backtracking line search (per-row step) ----
         step = torch.ones(B, device=device, dtype=dtype)
         line_done = torch.zeros(B, dtype=torch.bool, device=device)
-        fmax = last_fv.max(dim=-1).values                 # (B,)
+        fmax = last_fv.max(dim=-1).values  # (B,)
 
         x_keep = x.clone()
         r_keep = r.clone()
@@ -256,12 +258,12 @@ def spgl1_lasso_batched(
 
         for li in range(max_line_iters):
             # Trial direction: gstep * g, scaled per-row by `step`
-            step_g = (step * gstep).unsqueeze(-1)         # (B, 1)
+            step_g = (step * gstep).unsqueeze(-1)  # (B, 1)
             xnew = project_l1_ball_batched(x - step_g * g, tau)
             rnew = b - matvec(xnew)
             fnew = 0.5 * (rnew * rnew).sum(dim=-1)
             s = xnew - x
-            gts = step * (g * s).sum(dim=-1)              # (B,)
+            gts = step * (g * s).sum(dim=-1)  # (B,)
 
             descent = fnew < fmax + gamma * step * gts
             nodescent = gts >= 0
@@ -345,6 +347,7 @@ def tau_per_row(tau, B, device, dtype):
 # Reduced (Gram-form) LASSO solver  — when A^T A is small and explicit
 # ---------------------------------------------------------------------------
 
+
 def spgl1_lasso_reduced_batched(
     H,
     ATb,
@@ -414,8 +417,7 @@ def spgl1_lasso_reduced_batched(
     fbest = f.clone()
     xbest = x.clone()
 
-    last_fv = torch.full((B, n_prev_vals), -float("inf"),
-                         device=device, dtype=dtype)
+    last_fv = torch.full((B, n_prev_vals), -float("inf"), device=device, dtype=dtype)
     last_fv[:, 0] = f
 
     # Initial BB step from projected gradient direction
@@ -444,9 +446,12 @@ def spgl1_lasso_reduced_batched(
 
         opt = (rgap <= opt_tol) | (rnorm < opt_tol * bnorm.clamp(min=1e-30))
         if verbose:
-            print(f"  [r-it {it:4d}]  rnorm: max={rnorm.max():.4e}  "
-                  f"med={rnorm.median():.4e}  "
-                  f"opt: {opt.sum().item()}/{B}", flush=True)
+            print(
+                f"  [r-it {it:4d}]  rnorm: max={rnorm.max():.4e}  "
+                f"med={rnorm.median():.4e}  "
+                f"opt: {opt.sum().item()}/{B}",
+                flush=True,
+            )
         if opt.all():
             info["exit_stat"] = EXIT_OPTIMAL
             info["exit_iter"] = it
@@ -471,8 +476,9 @@ def spgl1_lasso_reduced_batched(
             step_g = (step * gstep).unsqueeze(-1)
             xnew = project_l1_ball_batched(x - step_g * g, tau)
             Hxnew = _Hx(xnew)
-            fnew = 0.5 * ((xnew * Hxnew).sum(dim=-1)
-                          - 2.0 * (xnew * ATb).sum(dim=-1) + b_norm_sq)
+            fnew = 0.5 * (
+                (xnew * Hxnew).sum(dim=-1) - 2.0 * (xnew * ATb).sum(dim=-1) + b_norm_sq
+            )
             s = xnew - x
             gts = step * (g * s).sum(dim=-1)
 

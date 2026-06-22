@@ -1,4 +1,4 @@
-#!/misc/envs/quant/bin/python
+#!/usr/bin/env python
 """GPTQ with as_strided sequential column-block quantization.
 
 Quantizes weight columns block-by-block using GPTQ error compensation,
@@ -16,7 +16,7 @@ Benchmarks all combinations of:
   +/- GPTQ error compensation
   Sequential vs Ordered (descending loss) column processing
 
-Usage: /misc/envs/quant/bin/python experiments/quant_gptq_strided.py
+Usage: python experiments/quant_gptq_strided.py
 """
 
 import sys

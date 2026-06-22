@@ -366,7 +366,7 @@ cast). Optimal/H-Optimal modes are unaffected since they iterate over the
 scale table either way; the ~2x slowdown there is purely from doubling the
 candidate count (255 vs 126).
 
-## Larger blocks: bs=64 (E4M3 scales) and bs=128 (FP16 scales)
+## Larger blocks: bs=32/64 (E4M3 scales) and bs=32/128 (FP16 scales)
 
 Same `layer_0` setup; W = 2560x9728, X = 244449x9728. Layouts here trade
 scale precision and block size for the same total bits/weight:
@@ -375,13 +375,30 @@ scale precision and block size for the same total bits/weight:
 |:--|:--:|:--:|:--:|:--:|
 | Baseline NVFP4 | 16 | FP8 E4M3 | 0.500 | 4.500 |
 | -- | 32 | FP8 E4M3 | 0.250 | 4.250 |
+| **New** | **32** | **FP16 E5M10** | **0.500** | **4.500** |
 | **New** | **64** | **FP8 E4M3** | **0.125** | **4.125** |
 | **New** | **128** | **FP16 E5M10** | **0.125** | **4.125** |
 
-For bs=128 + FP16, the snapped continuous optimum is essentially the true
-SSE / H-optimal minimum, so per-block scales are found by iterative
-alternation (q -> closed-form continuous s -> fp16 snap) rather than grid
-search.
+For FP16 scale formats, the grid is too fine to enumerate so per-block
+scales are found by iterative SSE alternation (q → closed-form s* →
+fp16 snap) rather than grid search. H is used for block ordering
+(saliency) and SPGL1 compensation, but not for the per-block scale search.
+
+### bs=32, FP16 E5M10 scales (4.500 b/w)
+
+| Codebook | Approach | GPTQ | Weight Error | Output Error | Time |
+|:--|:--|:--:|:--:|:--:|--:|
+| FP4 | Naive | -- | 10.11% | 6.93% | 7ms |
+| FP4 | Optimal (iter) | -- | 9.41% | 6.47% | 46ms |
+| FP4 | H-Optimal (iter) | -- | 9.72% | 5.86% | 287ms |
+| FP4 | GPTQ-Seq+Naive | Seq | 12.66% | 5.57% | 332ms |
+| FP4 | GPTQ-Ord+SSE-Opt | Ord | 12.20% | 4.91% | 1.3s |
+| FP4 | GPTQ-Ord+SSE-Opt+SPGL1 | Ord | 13.26% | **4.22%** | 121s |
+
+At 4.5 b/w, the FP16-scale + SPGL1 result (4.22%) closely matches the
+GPTQ-Ord+H-Opt result for bs=16 E4M3 (4.21%), and is well below the bs=32
+E4M3 + GPTQ-Ord+H-Opt result (4.75%). SPGL1 contributes **-0.69pp** here
+(4.91% → 4.22%), consistent with its contribution across all other configs.
 
 ### bs=64, FP8 E4M3 scales (4.125 b/w)
 
