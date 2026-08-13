@@ -1,208 +1,206 @@
 import torch
-from qwantize.fp4 import fp4_quantize, fp4_dequantize
-from qwantize.fp8 import fp8_e4m3_snap
+from typing import Tuple
+
+FP4_CODEBOOK = torch.tensor([0.0, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 6.0])
+FP4_BOUNDARIES = torch.tensor([0.25, 0.75, 1.25, 1.75, 2.5, 3.5, 5.0])
+Q_MAX = 6.0
+D_0 = 0.25
 
 
-def nvfp4_encode_exact(W, block_size=16):
-    """Recover the EXACT nvfp4 representation (e2m1 index, sign, fp8 per-block scale) of a weight
-    that is ALREADY on the nvfp4 grid (e.g. a GPTQ output: ``W == codes * fp8_block_scale`` per
-    16-block). No quantization *decision* is made beyond identifying which fp8 block scale
-    reproduces W exactly: W's per-block max maps to one of the codebook maxima {6,4,3,2,1.5,1,0.5},
-    so ``scale = fp8_snap(amax / c)`` for that c gives zero error. This is what feeds the marlin
-    bit-packer, so marlin never re-derives scales or codes.
+def _fp16_snap(x):
+    return x.to(torch.float16).to(torch.float32)
 
-    Returns:
-        codes_idx: [N, K] uint8, e2m1 magnitude index in 0..7.
-        signs:     [N, K] bool, True where W < 0.
-        fp8_scale: [N, K // block_size] float32, the per-block scale (fp8-e4m3 representable).
-    """
-    N, K = W.shape
-    nb = K // block_size
-    Wb = W.float().reshape(N, nb, block_size)
-    amax = Wb.abs().amax(-1, keepdim=True).clamp_min(1e-30)
-    best_s = amax / 6.0
-    best_er = torch.full_like(amax, float("inf"))
-    for c in (6.0, 4.0, 3.0, 2.0, 1.5, 1.0, 0.5):
-        s = fp8_e4m3_snap(amax / c)
-        er = (fp4_quantize(Wb, s) * s - Wb).abs().amax(-1, keepdim=True)
-        upd = er < best_er
-        best_er = torch.where(upd, er, best_er)
-        best_s = torch.where(upd, s, best_s)
-    quants = fp4_quantize(Wb, best_s).reshape(N, K)
-    return quants, best_s.squeeze(-1)
+
+def fp4_quantize(v):
+
+    boundaries = FP4_BOUNDARIES.to(v.device)
+    codebook = FP4_CODEBOOK.to(v.device)
+    signs = v.sign()
+    y = v.abs()
+    bucket_idx = torch.bucketize(y, boundaries)
+    quants = codebook[bucket_idx] * signs
+
+    return quants
+
+
+def nvfp4_iterative(W, block_size, num_iters=8):
+
+    shape = W.shape
+    x = W.view(*shape[:-1], -1, block_size).float()
+
+    amax = x.abs().amax(dim=-1, keepdims=True)
+    scales = _fp16_snap((amax / Q_MAX).clamp(min=1e-12))
+    quants, _, _ = fp4_quantize(x / scales)
+
+    for _ in range(num_iters):
+        scales = (quants * x).sum(-1, keepdims=True) / (
+            quants.square().sum(-1, keepdims=True) + 1e-12
+        )
+        scales = _fp16_snap(scales)
+        quants = fp4_quantize(x / scales)
+
+    dq = quants * scales
+
+    quants = quants.view(shape)
+    dq = dq.view(shape)
+
+    return quants, scales.squeeze(), dq
+
+
+def fp4_dequantize(quants, s):
+
+    return quants * s
 
 
 def compute_block_sse(x, s):
-    """Compute per-block sum of squared quantization error.
 
-    Args:
-        x: Block values of shape ``(num_blocks, block_size)``.
-        s: Per-block scales of shape ``(num_blocks,)`` or ``(num_blocks, 1)``.
-
-    Returns:
-        Tensor of shape ``(num_blocks,)`` with the SSE for each block.
-    """
-    if s.dim() == 1:
-        s = s.unsqueeze(-1)
-    quants = fp4_quantize(x, s)
-    dq = fp4_dequantize(quants, s)
+    _, _, dq = fp4_quantize(x, s)
     return (x - dq).pow(2).sum(dim=-1)
 
 
-def nvfp4_naive(W, dim=-1, return_dequant=False):
-    """Naive NVFP4 quantization: ``s = FP8_E4M3(max|x_i| / 6)`` per block.
+def nvfp4_naive(W, block_size):
 
-    Args:
-        W: Input tensor. ``W.shape[dim]`` must be 16 or 32 (the block size).
-        dim: Dimension along which to quantize (default: -1).
-        return_dequant: If ``True``, also return the dequantized tensor.
+    shape = W.shape
 
-    Returns:
-        ``(scales, quants)`` by default, or ``(scales, quants, dequant)``
-        if *return_dequant* is ``True``.
-
-        - **scales**: Per-block FP8 E4M3 scales. Shape is *W.shape* with
-          dimension *dim* removed.
-        - **quants**: Signed FP4 codebook values. Same shape as *W*.
-        - **dequant**: ``quants * scales`` broadcast. Same shape as *W*.
-    """
-    dim = dim % W.ndim
-    block_size = W.shape[dim]
-    assert block_size in (16, 32)
-
-    x = W.float().movedim(dim, -1)
-    batch_shape = x.shape[:-1]
-    x = x.reshape(-1, block_size)
-
-    amax = x.abs().amax(dim=-1)
+    x = W.view(*shape[:-1], -1, block_size).float()
+    amax = x.abs().amax(dim=-1, keepdims=True)
     s_cont = (amax / Q_MAX).clamp(min=1e-12)
-    scales = _fp8_e4m3_snap(s_cont)
+    scales = _fp16_snap(s_cont)
 
-    quants = fp4_quantize(x, scales.unsqueeze(-1))
-    result = (
-        scales.reshape(*batch_shape),
-        quants.reshape(*batch_shape, block_size).movedim(-1, dim),
-    )
-    if return_dequant:
-        dq = fp4_dequantize(quants, scales.unsqueeze(-1))
-        result = result + (dq.reshape(*batch_shape, block_size).movedim(-1, dim),)
-    return result
+    quants, _, dq = fp4_quantize(x, scales)
+
+    quants = quants.view(shape)
+    dq = dq.view(shape)
+    return quants, scales.squeeze(), dq
 
 
-def nvfp4_optimal(W, dim=-1, return_dequant=False):
-    """Optimal NVFP4 quantization via bounded search over FP8 E4M3 scales.
+# def generate_scale(s0, search_offset, search_interval: Tuple[int, int]):
 
-    Uses clipping and dead-zone bounds to reduce the search from 126
-    FP8 candidates to ~4-8, with a fast-fail clipping check per candidate.
-    See :doc:`../optimal_scale_search` for the algorithm.
+#     max_val = 31743
+#     s0_tmp = s0.clone()
+#     s0_int = s0_tmp.view(torch.int16)
+#     s0_int.add_(search_offset * search_interval[0]).clamp_(min=1, max=max_val)
+#     yield s0_tmp
+#     for _ in range(0, search_interval[1] - search_interval[0]):
+#         s0_int.add_(search_offset).clamp_(min=1, max=max_val)
+#         yield s0_tmp
 
-    Args:
-        W: Input tensor. ``W.shape[dim]`` must be 16 or 32 (the block size).
-        dim: Dimension along which to quantize (default: -1).
-        return_dequant: If ``True``, also return the dequantized tensor.
 
-    Returns:
-        ``(scales, quants)`` by default, or ``(scales, quants, dequant)``
-        if *return_dequant* is ``True``.
+# def nvfp4_optimal_sse(
+#     W,
+#     block_size,
+#     search_offset=8,
+#     search_interval=(-16, 16),
+# ):
+#     """Optimal NVFP4 quantization via bounded search over FP8 E4M3 scales.
 
-        - **scales**: Per-block optimal FP8 E4M3 scales. Shape is *W.shape*
-          with dimension *dim* removed.
-        - **quants**: Signed FP4 codebook values. Same shape as *W*.
-        - **dequant**: ``quants * scales`` broadcast. Same shape as *W*.
-    """
-    dim = dim % W.ndim
-    block_size = W.shape[dim]
-    assert block_size in (16, 32)
+#     Uses clipping and dead-zone bounds to reduce the search from 126
+#     FP8 candidates to ~4-8, with a fast-fail clipping check per candidate.
+#     See :doc:`../optimal_scale_search` for the algorithm.
 
-    x = W.float().movedim(dim, -1)
-    batch_shape = x.shape[:-1]
-    x = x.reshape(-1, block_size)
-    N = x.shape[0]  # total number of blocks
+#     Args:
+#         W: Input tensor. ``W.shape[dim]`` must be 16 or 32 (the block size).
+#         dim: Dimension along which to quantize (default: -1).
+#         return_dequant: If ``True``, also return the dequantized tensor.
 
-    all_scales = build_fp8_e4m3_scales(device=x.device)
+#     Returns:
+#         ``(scales, quants)`` by default, or ``(scales, quants, dequant)``
+#         if *return_dequant* is ``True``.
 
-    # Step 1: Baseline (naive) scale and error
-    amax = x.abs().amax(dim=-1)  # (N,)
-    s_cont = (amax / Q_MAX).clamp(min=1e-12)
-    s0 = _fp8_e4m3_snap(s_cont)  # (N,)
+#         - **scales**: Per-block optimal FP8 E4M3 scales. Shape is *W.shape*
+#           with dimension *dim* removed.
+#         - **quants**: Signed FP4 codebook values. Same shape as *W*.
+#         - **dequant**: ``quants * scales`` broadcast. Same shape as *W*.
+#     """
+#     # block_size = W.shape[dim]
 
-    E0 = compute_block_sse(x, s0)  # (N,)
+#     # x = W.float().movedim(dim, -1)
+#     # batch_shape = x.shape[:-1]
+#     x = W.reshape(-1, block_size)
+#     N = x.shape[0]
 
-    best_s = s0.clone()
-    best_E = E0.clone()
+#     # Step 1: Baseline (naive) scale and error
+#     amax = x.abs().amax(dim=-1)  # (N,)
+#     s_cont = (amax / Q_MAX).clamp(min=1e-12)
+#     s0 = _fp16_snap(s_cont)  # (N,)
 
-    # Step 2: Edge case - noise blocks (sum(x^2) <= E0)
-    total_energy = x.pow(2).sum(dim=-1)  # (N,)
-    noise_mask = total_energy <= E0
+#     E0 = compute_block_sse(x, s0)  # (N,)
 
-    # Step 3: Compute bounds
-    sqrt_E0 = E0.sqrt()
-    s_min = ((amax - sqrt_E0) / Q_MAX).clamp(min=0.0)  # (N,)
+#     best_s = s0.clone()
+#     best_E = E0.clone()
 
-    # Upper bound: sort |x| ascending, cumsum of squares, find k*
-    sorted_abs, _ = x.abs().sort(dim=-1)  # (N, block_size)
-    cumsum_sq = sorted_abs.pow(2).cumsum(dim=-1)  # (N, block_size)
-    k_star = (cumsum_sq <= E0.unsqueeze(-1)).sum(dim=-1)  # (N,)
+#     # Step 2: Edge case - noise blocks (sum(x^2) <= E0)
+#     total_energy = x.pow(2).sum(dim=-1)
+#     noise_mask = total_energy <= E0
 
-    # Blocks where all elements are "affordable" to quantize to zero -> noise
-    noise_mask = noise_mask | (k_star >= block_size)
+#     # Step 3: Compute bounds
+#     sqrt_E0 = E0.sqrt()
+#     s_min = ((amax - sqrt_E0) / Q_MAX).clamp(min=0.0)
 
-    k_star_idx = k_star.clamp(max=block_size - 1)
-    y_k_plus_1 = sorted_abs.gather(dim=-1, index=k_star_idx.unsqueeze(-1)).squeeze(-1)
-    s_max = y_k_plus_1 / D_0  # (N,)
+#     # Upper bound: sort |x| ascending, cumsum of squares, find k*
+#     sorted_abs, _ = x.abs().sort(dim=-1)
+#     cumsum_sq = sorted_abs.pow(2).cumsum(dim=-1)
+#     k_star = (cumsum_sq <= E0.unsqueeze(-1)).sum(dim=-1)
 
-    # Step 4: Bounded search over candidate scales
-    active = ~noise_mask
-    if active.any():
-        x_active = x[active]
-        s_min_a = s_min[active]
-        s_max_a = s_max[active]
-        best_E_a = best_E[active].clone()
-        best_s_a = best_s[active].clone()
+#     # Blocks where all elements are "affordable" to quantize to zero -> noise
+#     noise_mask = noise_mask | (k_star >= block_size)
 
-        for s_val in all_scales:
-            s_f = s_val.item()
+#     k_star_idx = k_star.clamp(max=block_size - 1)
+#     y_k_plus_1 = sorted_abs.gather(dim=-1, index=k_star_idx.unsqueeze(-1)).squeeze(-1)
+#     s_max = y_k_plus_1 / D_0  # (N,)
 
-            # Per-block range check
-            in_range = (s_f >= s_min_a) & (s_f <= s_max_a)
-            if not in_range.any():
-                continue
+#     # Step 4: Bounded search over candidate scales
+#     active = ~noise_mask
+#     if active.any():
+#         x_active = x[active]
+#         s_min_a = s_min[active]
+#         s_max_a = s_max[active]
+#         best_E_a = best_E[active].clone()
+#         best_s_a = best_s[active].clone()
 
-            # Fast-fail: clipping error H(s) = sum(max(|x_i| - 6*s, 0)^2)
-            H_s = (x_active.abs() - Q_MAX * s_f).clamp(min=0).pow(2).sum(dim=-1)
+#         for s_val in all_scales:
+#             s_f = s_val.item()
 
-            # Only evaluate blocks in range and passing fast-fail
-            evaluate = in_range & (H_s < best_E_a)
-            if not evaluate.any():
-                continue
+#             # Per-block range check
+#             in_range = (s_f >= s_min_a) & (s_f <= s_max_a)
+#             if not in_range.any():
+#                 continue
 
-            # Full SSE computation
-            s_broadcast = torch.full(
-                (x_active.shape[0], 1),
-                s_f,
-                device=x_active.device,
-                dtype=x_active.dtype,
-            )
-            E_s = compute_block_sse(x_active, s_broadcast.squeeze(-1))
+#             # Fast-fail: clipping error H(s) = sum(max(|x_i| - 6*s, 0)^2)
+#             H_s = (x_active.abs() - Q_MAX * s_f).clamp(min=0).pow(2).sum(dim=-1)
 
-            # Update best where improved
-            improved = evaluate & (E_s < best_E_a)
-            best_E_a[improved] = E_s[improved]
-            best_s_a[improved] = s_f
+#             # Only evaluate blocks in range and passing fast-fail
+#             evaluate = in_range & (H_s < best_E_a)
+#             if not evaluate.any():
+#                 continue
 
-        best_E[active] = best_E_a
-        best_s[active] = best_s_a
+#             # Full SSE computation
+#             s_broadcast = torch.full(
+#                 (x_active.shape[0], 1),
+#                 s_f,
+#                 device=x_active.device,
+#                 dtype=x_active.dtype,
+#             )
+#             E_s = compute_block_sse(x_active, s_broadcast.squeeze(-1))
 
-    # Final quantization with optimal scales
-    quants = fp4_quantize(x, best_s.unsqueeze(-1))
-    result = (
-        best_s.reshape(*batch_shape),
-        quants.reshape(*batch_shape, block_size).movedim(-1, dim),
-    )
-    if return_dequant:
-        dq = fp4_dequantize(quants, best_s.unsqueeze(-1))
-        result = result + (dq.reshape(*batch_shape, block_size).movedim(-1, dim),)
-    return result
+#             # Update best where improved
+#             improved = evaluate & (E_s < best_E_a)
+#             best_E_a[improved] = E_s[improved]
+#             best_s_a[improved] = s_f
+
+#         best_E[active] = best_E_a
+#         best_s[active] = best_s_a
+
+#     # Final quantization with optimal scales
+#     quants = fp4_quantize(x, best_s.unsqueeze(-1))
+#     result = (
+#         best_s.reshape(*batch_shape),
+#         quants.reshape(*batch_shape, block_size).movedim(-1, dim),
+#     )
+#     if return_dequant:
+#         dq = fp4_dequantize(quants, best_s.unsqueeze(-1))
+#         result = result + (dq.reshape(*batch_shape, block_size).movedim(-1, dim),)
+#     return result
 
 
 def _compute_block_hessian_error(x, s, H_blocks, M_dim, num_col_blocks, block_size):
@@ -513,3 +511,18 @@ def nvfp4_dequantize(scales, quants, dim=-1):
         Dequantized tensor with the same shape as *quants*.
     """
     return quants * scales.unsqueeze(dim)
+
+
+# if __name__ == "__main__":
+
+#     x = torch.randn(4, 2).half().cuda().abs()
+#     min_x = x
+#     max_x = x
+
+#     for s in generate_scale(x, 8, (-16, 16)):
+#         # print(s)
+#         min_x = torch.minimum(s, min_x)
+#         max_x = torch.maximum(s, max_x)
+#     print(min_x)
+#     print(x)
+#     print(max_x)

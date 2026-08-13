@@ -10,6 +10,64 @@ import torch
 import triton
 import triton.language as tl
 
+# FP4 E2M1 codebook (actual values)
+FP4_CODEBOOK = torch.tensor([0.0, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 6.0])
+# Decision boundaries: midpoints between consecutive codebook values
+FP4_BOUNDARIES = torch.tensor([0.25, 0.75, 1.25, 1.75, 2.5, 3.5, 5.0])
+Q_MAX = 6.0
+D_0 = 0.25  # decision boundary for rounding to zero
+
+
+def fp4_quantize(x, s):
+    """Quantize to FP4 E2M1 codebook values given a per-block scale.
+
+    Maps each element to the nearest value in ``{0, 0.5, 1, 1.5, 2, 3, 4, 6}``
+    (with sign preserved).
+
+    Args:
+        x: Input tensor of shape ``(..., block_size)``.
+        s: Per-block scale of shape ``(..., 1)``, broadcastable to *x*.
+
+    Returns:
+        Signed codebook values with the same shape as *x*.
+    """
+    boundaries = FP4_BOUNDARIES.to(x.device)
+    codebook = FP4_CODEBOOK.to(x.device)
+    signs = x.sign()
+    y = x.abs() / s  # normalized magnitude
+    bucket_idx = torch.bucketize(y, boundaries)
+    q_mag = codebook[bucket_idx]
+    return signs * q_mag
+
+
+def fp4_dequantize(quants, s):
+    """Dequantize FP4 codebook values back to float: ``dequant = quants * s``.
+
+    Args:
+        quants: Signed codebook values of shape ``(..., block_size)``.
+        s: Per-block scale of shape ``(..., 1)``, broadcastable to *quants*.
+
+    Returns:
+        Dequantized tensor with the same shape as *quants*.
+    """
+    return quants * s
+
+
+@torch.compiler.disable
+def build_fp8_e4m3_scales(device="cpu"):
+    """Return sorted tensor of all 126 positive FP8 E4M3 representable values.
+
+    Args:
+        device: Torch device for the output tensor.
+
+    Returns:
+        Tensor of shape ``(126,)`` with sorted positive FP8 E4M3 values as float32.
+    """
+    all_bytes = torch.arange(256, dtype=torch.uint8, device=device)
+    fp8_vals = all_bytes.view(torch.float8_e4m3fn).to(torch.float32)
+    pos = fp8_vals[(fp8_vals > 0) & (~fp8_vals.isnan())]
+    return pos.unique().sort().values
+
 
 # ---------------------------------------------------------------------------
 # Inline ASM: FP4 quantize-dequantize
@@ -277,6 +335,6 @@ def fp4_unpack(input_data: torch.Tensor) -> torch.Tensor:
     BLOCK_SIZE = 256
     n_int32 = n_bytes // 4
     grid = ((n_int32 + BLOCK_SIZE - 1) // BLOCK_SIZE,)
-    fp4_decode_kernel[grid](input_data, output_data, n_bytes, BLOCK_SIZE=BLOCK_SIZE)
+    fp4_decode_kernel[grid](input_data, output_data, n_bytes, BLOCK_SIZE=BLOCK_SIZE) #type : ignore
 
     return output_data

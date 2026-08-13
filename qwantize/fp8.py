@@ -1,11 +1,22 @@
 """FP8 E4M3 Triton ASM helper: snap float32 to nearest FP8 E4M3 value."""
 
+import torch
 import triton
 import triton.language as tl
 
 
+@torch.compiler.disable
+def fp8_e4m3_snap(x):
+    """Snap float32 values to nearest FP8 E4M3 representable value.
+
+    Excluded from torch.compile because inductor emits float8e4nv which
+    is unsupported on pre-Ada GPUs.
+    """
+    return x.to(torch.float8_e4m3fn).to(torch.float32)
+
+
 @triton.jit
-def fp8_e4m3_snap_asm(val):
+def fp8_e4m3_snap_asm_kernel(val):
     """
     Snap a positive float32 to the nearest FP8 E4M3 representable value.
 
